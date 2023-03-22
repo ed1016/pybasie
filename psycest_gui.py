@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.ticker import MaxNLocator
-
+import pickle
 from scipy.optimize import minimize_scalar
 from scipy.stats import norm, logistic, norm
 from scipy.special import ndtri, expit, erf, erfinv, erfc, erfcinv
@@ -17,7 +17,7 @@ import math
 # import time
 import random
 import glob
-from basie_functions import *
+import basie_functions
 import pandas as pd
 
 def defaultfct(**kwargs):
@@ -63,8 +63,20 @@ def extractfilelist_practice(folderpath):
             availsnr.append(float(filename[filename.find("snr_")+len("snr_"):filename.find("_db")]))
     return files, availsnr
 
+def check_ID_day(outfolder, ID):
+    foldfiles = os.listdir(outfolder)
+    timestamp = dt.now().strftime("%Y%m%d")
+    matches=[]
+    for i in foldfiles:
+        if ID in i:
+            timefiles=os.listdir(os.path.join(outfolder,i))
+            for j in timefiles:
+                if timestamp in j:
+                    matches.append(os.path.join(outfolder,i, j))
+    return matches
+
 def run_practice(**kwargs):
-    nt = int(kwargs.get('ntrials').get())
+    nt = int(kwargs.get('ntrials'))
     audiofiles = kwargs.get('audiofiles').get()
     root = kwargs.get('rootfig')
 
@@ -108,16 +120,13 @@ def run_trials(**kwargs):
     basiep={'cs': slopeweight}
     reverblist, filelist, availsnr = extractfilelist(audiofiles)
 
-    # plotarea.line.set_data(range(10), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-    # plotarea.canvas.draw()
-    # plotarea.line.set_data(range(10), [1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-
     if not filelist :
         print('No .wav files in provided folder')
     elif not availsnr:
         print('Wrong snr naming convention in provided folder')
     else:
-        timestamp = dt.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = dt.now().strftime("%Y%m%d_%H%M%S")#
+        os.makedirs(os.path.join(outdir, ID, timestamp), exist_ok=True)
         nmodels = len(reverblist)
         if nmodels==1:
             snrlist=np.sort(list(set(availsnr[0])))
@@ -127,24 +136,57 @@ def run_trials(**kwargs):
                 snrlist.append(np.sort(list(set(availsnr[i]))))
             snrlist = np.asarray(snrlist)
 
-        # initialise model
+        # ------------ initialise model ------------
         # TODO: if there are persistent variables saved (i.e. paused experiment), load them and skip init
-        [snr, evalmodel,_,_] = v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+        IDmatches = check_ID_day(outdir, ID)
+        if IDmatches:
+            IDmatches.insert(0, 'New')
+            selectedID = listselect(root, IDmatches).show()
+            if selectedID=='New':
+                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist) 
+            else:
+                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)     
+                try:
+                    pklfile=os.path.join(selectedID,'paused.pkl')
+                    with open(pklfile, 'rb') as f:
+                        basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
+                        basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
+                        basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
+                        basie_functions.xlim, evalmodel, snr = pickle.load(f)
+                except:
+                    pklfile=os.path.join(selectedID,'finished.pkl')
+                    with open(pklfile, 'rb') as f:
+                        basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
+                        basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
+                        basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
+                        basie_functions.xlim, evalmodel, snr = pickle.load(f)
+
+
+        else:
+            [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+
         filenames=np.empty((nt, 1), dtype=object)
 
         # ------------ plot parameters ------------
         plotsnr=[]
         plotarea.fig.clf()
-        ax = plotarea.fig.add_subplot(111, xlabel='Trial number (per model)', ylabel='SNR [dB]', ylim=(modelp[3],modelp[4]))
+        ax = plotarea.fig.add_subplot(111, xlabel='Trial number (per model)', ylabel='probe SNR [dB]', ylim=(modelp[3],modelp[4]))
         lines = []
 
         colors=['rx--','bx-.']
+        infostring=''
         for i in range(nmodels):
             line,= ax.plot(0,float('nan'),colors[i], label='Model: ' + str(i+1) + ' (' + reverblist[i] + ')')
             lines.append(line)
+            infostring+=f"Model {str(i+1)} ({reverblist[i]}): 00.00 \u00B1 00.00 dB\t\t" 
         ax.legend()
-        plotarea.fig.subplots_adjust(bottom=0.15, left=0.15)
+        # plotarea.fig.subplots_adjust(bottom=0.15, left=0.15)
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.grid()
+        infostring=infostring[0:-2]
+        plotarea.textvar.set(infostring)
+
+        plotarea.activatepause()
         # ax.ylim([-20, 20])
         # -----------------------------------------
 
@@ -159,25 +201,39 @@ def run_trials(**kwargs):
                 currentfile=random.choice([filelist[evalmodel-1][j] for j in snridx])
                 filenames[i] = currentfile
                 trialtitle = 'Trial ' + str(i+1) +'/' + str(nt)
-                response = responsewindow(root, currentfile, trialtitle).show()
-                if response == 'NaN':
+
+                respwindow = responsewindow(root, currentfile, trialtitle)
+                response = respwindow.show()
+                if plotarea.pausevar.get()=='paused':
                     flg=2
                 elif response:
                     flg=1
 
+            if plotarea.pausevar.get()=='paused':
+                print('experiment paused')
+                with open(os.path.join(outdir, ID, timestamp, 'paused.pkl'),'wb') as f:
+                    pickle.dump([basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
+                     basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
+                     basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
+                     basie_functions.xlim, evalmodel, snr], f)
+                break
             print('snr', snr, 'response', np.array([[(response=='1')]]), 'model', evalmodel)
 
             # calculate next snr and model
-            [snr, evalmodel, m, v] = v_psycest(evalmodel, snr, np.array([[(response=='1')]]))
+            [snr, evalmodel, m, v] = basie_functions.v_psycest(evalmodel, snr, np.array([[(response=='1')]]))
 
+            infostring=''
+            for j in range(nmodels):
+                infostring+=f'Model {j+1} ({reverblist[j]}): {m[0,j,0]:2.2f} \u00B1 {np.sqrt(v[0,j]):2.2f} dB\t\t'
+            infostring=infostring[0:-2]
+            plotarea.textvar.set(infostring)
 
             if all(v[0,:]<5):
                 print('var is low enough')
                 break
-        [p, q, msr] = v_psycest(0)
+        [p, q, msr] = basie_functions.v_psycest(0)
 
         ####### save a config file with details of experiment #######
-        os.makedirs(os.path.join(outdir, ID, timestamp), exist_ok=True)
         with open(os.path.join(outdir, ID, timestamp, 'config.txt'), 'w') as file:
             file.write(f'time: {timestamp} \t subjectID: {ID} \t audio folder: {audiofiles} \t model parameters: {modelp.flatten()} \t reverb list: {reverblist} \t ntrials: {nt}')
 
@@ -186,6 +242,17 @@ def run_trials(**kwargs):
         df=pd.DataFrame({'ID': [ID] * nlines, 'time': [timestamp]*nlines, 'model nbr': msr[:,0], 'snr (dB)': msr[:,1], 'file':filenames[0:nlines].flatten(), 'response': msr[:,2],
             'srt': msr[:,3], 'log-slope': msr[:,4], 'var(srt)': msr[:,5], 'var(log-slope)': msr[:,6]})
         df.to_csv(os.path.join(outdir, ID, timestamp, 'results.csv'), index=False)
+
+        if plotarea.pausevar.get()=='active':
+            with open(os.path.join(outdir, ID, timestamp, 'finished.pkl'),'wb') as f:
+                pickle.dump([basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
+                 basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
+                 basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
+                 basie_functions.xlim, evalmodel, snr], f)
+
+
+        plotarea.hidepause()
+        plotarea.pausevar.set('active')
 
 class responsewindow(Toplevel):
     def __init__(self, root, audiofile, titlestr):
@@ -206,7 +273,6 @@ class responsewindow(Toplevel):
         self.audiobtn = launchbutton(self, play_audio, 'Play', [0,0,1,1], audiofile=audiofile, audioVar=self.audioVar)
 
         self.responsebtns = responsebutton(self, self.responseVar, [1,0,1,1])
-        print(self.responseVar.get())
 
         # self.confirmframe = confirmbutton(self.parent, confirmVar, [2,0,1,1])
         self.confirmbutton = Button(self, text='Confirm', width=10, command=lambda: self.confirmresponse())
@@ -226,6 +292,9 @@ class responsewindow(Toplevel):
         # self.responsebtns.focus_force()
         self.wait_window()
         return self.responseVar.get()
+
+    def closewindow(self):
+        self.destroy()
 
 class textentry:
     def __init__(self, root, lbl='Default', vaript=None, pos=[0,0,1,1], range=None):
@@ -301,7 +370,6 @@ class textentry:
 
     def update_val(self, newval):
         self.var.set(newval)
-
 
     def __update_varlbl(self, *args):
         self.__lblfull.set('Value: ' +str(self.var.get()))
@@ -394,7 +462,7 @@ class launchbutton:
 
 class plotarea:
     def __init__(self, root, **kargs):
-        self.fig=plt.Figure(figsize=(5,3))
+        self.fig=plt.Figure()
         # self.ax=self.fig.add_subplot()
         # self.line, = self.ax.plot(0,0)
 
@@ -403,7 +471,65 @@ class plotarea:
 
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky='w')
 
+        self.textvar=StringVar(value='')
+        self.__label=Label(root, textvariable=self.textvar, font=('Arial',13))
 
+        self.__label.grid(row=1,column=0, sticky='we')
+
+        self.pausevar=StringVar(value='active', master=root)
+        self.pausebtn=launchbutton(root, self.pauseexperiment, 'Pause', [3,0,1,1])
+        self.hidepause
+        # self.pausebtn.grid(row=2,column=0, sticky='we')
+
+    def activatepause(self):
+        self.pausebtn.place_on_grid([3,0,1,1])
+
+    def hidepause(self):
+        self.pausebtn.box.grid_forget()
+
+    def pauseexperiment(self):
+        self.pausevar.set('paused')
+        windowitems=[]
+        for k,v in self.canvas.get_tk_widget().master.master.children.items():
+            if 'responsewindow' in k:
+                windowitems.append(v)
+        for i in windowitems:
+            i.closewindow()
+
+class listselect(Toplevel):    
+    def __init__(self, root, filelist):
+        
+        Toplevel.__init__(self, root)
+        self.title('Select folder')
+        self.geometry("+%d+%d" %(root.winfo_x()+500, root.winfo_y()+300))
+
+        self.responseVar = StringVar(value='New')
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
+        self.label = Label(self, text='An experiment already exists for this ID today - please select what to load', font=('Arial', 12))
+        self.label.grid(row=0,column=0)
+        self.listbox = ttk.Combobox(self, values=filelist, textvariable=self.responseVar)
+        self.listbox.grid(row=1, column=0)
+
+        # self.responsebtns = responsebutton(self, self.responseVar, [1,0,1,1])
+
+        # self.confirmframe = confirmbutton(self.parent, confirmVar, [2,0,1,1])
+        self.confirmbutton = Button(self, text='Confirm', width=10, command=lambda: self.confirmresponse())
+
+        self.confirmbutton.grid(row=2, column=0)
+
+    def confirmresponse(self):
+        self.destroy()
+
+    def show(self):
+        self.wm_deiconify()
+        # self.responsebtns.focus_force()
+        self.wait_window()
+        return self.responseVar.get()
 
 if __name__=='__main__':
     # --------- instantiate GUI ---------
@@ -416,6 +542,7 @@ if __name__=='__main__':
     advancedparamframe=LabelFrame(mainfig, width=600, height=150, text="Advanced parameters", font=('Arial', 14, 'bold'), labelanchor='n')   
     experframe=LabelFrame(mainfig, width=600, height=100, labelanchor='n')
     plotframe=Frame(mainfig, width=200, height=100)
+    # pauseframe=Frame(mainfig, width=200, height=100)
 
     mainfig.grid_rowconfigure(0, weight=1)
     mainfig.grid_rowconfigure(1, weight=1)
@@ -428,7 +555,8 @@ if __name__=='__main__':
     paramframe.grid(row=1, column=0, padx=20, pady=0, sticky='nsew')
     advancedparamframe.grid(row=2, column=0, padx=20, pady=0, sticky='nsew')
     experframe.grid(row=3, column=0, padx=20, pady=20, sticky='nsew')
-    plotframe.grid(row=1, column=1, rowspan=2, padx=20, pady=10, sticky='nsew')
+    plotframe.grid(row=1, column=1, rowspan=3, padx=20, pady=10, sticky='nsew')
+    # pauseframe.grid(row=3, column=1, padx=20, pady=0, sticky='nsew')
 
     # --------- add logos ---------
     imgframe.grid_columnconfigure(0, weight=1)
@@ -471,7 +599,7 @@ if __name__=='__main__':
     slopeweightvar=StringVar(advancedparamframe, value='0.5')
     slopeweight=textentry(advancedparamframe, 'Slope weight: ', slopeweightvar, [0,0,1,1], [0, 1])
 
-    minsnrvar=StringVar(advancedparamframe, value='-10.0')
+    minsnrvar=StringVar(advancedparamframe, value='-20.0')
     minsnr=textentry(advancedparamframe, 'Min SNR (dB): ', minsnrvar, [0,1,1,1])
 
     maxsnrvar=StringVar(advancedparamframe, value='20.0')
@@ -483,21 +611,29 @@ if __name__=='__main__':
     guessratevar=StringVar(advancedparamframe, value=0.1)
     guessrate=textentry(advancedparamframe, 'Guess rate: ', guessratevar, [1,0,1,1], [0, 1])
 
-    missratevar=StringVar(advancedparamframe, value=0.1)
+    missratevar=StringVar(advancedparamframe, value=0.04)
     missrate=textentry(advancedparamframe, 'Miss rate: ', missratevar, [1,1,1,1], [0, 1])
 
-
-    # --------- Plot area ---------
+    ntrialspractice=5
+    # --------- Control area ---------
     plotframe.grid_rowconfigure(0, weight=1)
+    plotframe.grid_rowconfigure(1, weight=1)
+    plotframe.grid_rowconfigure(2, weight=1)
     plotframe.grid_columnconfigure(0, weight=1)
     canvas=plotarea(plotframe)
+
+    # # --------- Pause button ---------
+    # pauseframe.grid_rowconfigure(0, weight=1)
+    # pauseframe.grid_columnconfigure(0, weight=1)
+
+    # pausebtn=launchbutton(pauseframe, pauseexperiment, 'Pause', [0,0,1,1])
 
     # --------- Run buttons ---------
     experframe.grid_rowconfigure(0, weight=1)
     experframe.grid_columnconfigure(0, weight=1)
     experframe.grid_columnconfigure(1, weight=1)
 
-    practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,0,1,1], ntrials=ntrialsvar, audiofiles=audiofilevar, rootfig=mainfig)
+    practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,0,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig)
 
     runbutton=launchbutton(experframe, run_trials, 'Start', [0,1,1,1], id=subjectIDvar, ntrials=ntrialsvar, audiofiles=audiofilevar, 
         rootfig=mainfig, mrate=missratevar, grate=guessratevar, outdir=outputdirvar, slopeweight=slopeweightvar, plot=canvas, minsnr=minsnrvar, maxsnr=maxsnrvar)
