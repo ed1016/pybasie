@@ -19,6 +19,9 @@ import random
 import glob
 import basie_functions
 import pandas as pd
+from pydub import AudioSegment
+from pydub.playback import play
+from tkinter import messagebox
 
 def defaultfct(**kwargs):
     print('this is the defaultfct')
@@ -27,6 +30,8 @@ def play_audio(**kwargs):
     audiovar=kwargs.get('audioVar')
     if not audiovar.get():
         print('playing this file: ', audiofile)
+        song = AudioSegment.from_wav(audiofile)
+        play(song);
         audiovar.set('True')
     else:
         print('already played audio')
@@ -68,7 +73,7 @@ def check_ID_day(outfolder, ID):
     timestamp = dt.now().strftime("%Y%m%d")
     matches=[]
     for i in foldfiles:
-        if ID in i:
+        if i==ID:
             timefiles=os.listdir(os.path.join(outfolder,i))
             for j in timefiles:
                 if timestamp in j:
@@ -126,8 +131,13 @@ def run_trials(**kwargs):
         print('Wrong snr naming convention in provided folder')
     else:
         timestamp = dt.now().strftime("%Y%m%d_%H%M%S")#
-        os.makedirs(os.path.join(outdir, ID, timestamp), exist_ok=True)
         nmodels = len(reverblist)
+
+        if nmodels>5:
+            tmp=messagebox.askquestion("Warning!", f"The experiment contains {nmodels} models. This will have slow convergence. Continue?", icon="question")
+            if tmp=='no':
+                return
+
         if nmodels==1:
             snrlist=np.sort(list(set(availsnr[0])))
         else:
@@ -143,49 +153,69 @@ def run_trials(**kwargs):
             IDmatches.insert(0, 'New')
             selectedID = listselect(root, IDmatches).show()
             if selectedID=='New':
-                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist) 
+                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+                filenames=[]
             else:
-                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)     
-                try:
-                    pklfile=os.path.join(selectedID,'paused.pkl')
-                    with open(pklfile, 'rb') as f:
-                        basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
-                        basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
-                        basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
-                        basie_functions.xlim, evalmodel, snr = pickle.load(f)
-                except:
+                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+                if os.path.isfile(os.path.join(selectedID,'finished.pkl')):
                     pklfile=os.path.join(selectedID,'finished.pkl')
-                    with open(pklfile, 'rb') as f:
-                        basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
-                        basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
-                        basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
-                        basie_functions.xlim, evalmodel, snr = pickle.load(f)
+                elif os.path.isfile(os.path.join(selectedID,'paused.pkl')):
+                    pklfile=os.path.join(selectedID,'paused.pkl')
+                else:
+                    print('no .plk file')
 
-
+                with open(pklfile, 'rb') as f:
+                    # data = pickle.load(f)
+                    # print(data)
+                    [basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
+                    basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
+                    basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
+                    basie_functions.xlim, evalmodel, snr, filenames] = pickle.load(f)
         else:
             [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+            filenames=[]
 
-        filenames=np.empty((nt, 1), dtype=object)
+        os.makedirs(os.path.join(outdir, ID, timestamp), exist_ok=True)
 
         # ------------ plot parameters ------------
         plotsnr=[]
         plotarea.fig.clf()
         ax = plotarea.fig.add_subplot(111, xlabel='Trial number (per model)', ylabel='probe SNR [dB]', ylim=(modelp[3],modelp[4]))
         lines = []
+        linessrt=[]
+        # colors=['rx--','bx-.', 'gx:', ]
+        linetypes=['--', '-.', ':']
+        colors=['r','b','g','c', 'm', 'y']
 
-        colors=['rx--','bx-.']
+        linecolors=[]
+        colorlist=[]
+        for i in range(nmodels):
+            cflg=0
+            while cflg==0:
+                candc = random.choice(colors)
+                cand = 'x' + random.choice(linetypes) + candc
+                if candc not in linecolors:
+                    linecolors.append(cand)
+                    colorlist.append(candc)
+                    cflg=1
+
         infostring=''
         for i in range(nmodels):
-            line,= ax.plot(0,float('nan'),colors[i], label='Model: ' + str(i+1) + ' (' + reverblist[i] + ')')
+            line,= ax.step(0,float('nan'),linecolors[i], label='Model: ' + str(i+1) + ' (' + reverblist[i] + ')', linewidth=1.6)
+            lineSRT = ax.axhline(y=0, color=colorlist[i], label='Model: ' + str(i+1) + ' (' + reverblist[i] + '), SRT', linewidth=1.6)
             lines.append(line)
-            infostring+=f"Model {str(i+1)} ({reverblist[i]}): 00.00 \u00B1 00.00 dB\t\t" 
+            linessrt.append(lineSRT)
+            infostring+=f"Model {str(i+1)}: SRT 00.00 \u00B1 00.00 dB\t Slope 00.00 \u00B1 00.00 dB\u207B\u00B9 \n" 
         ax.legend()
         # plotarea.fig.subplots_adjust(bottom=0.15, left=0.15)
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
         ax.grid()
         infostring=infostring[0:-2]
         plotarea.textvar.set(infostring)
-
+        if nmodels>1:
+            ax.set_xlim([0, int(0.5*nt)+5])
+        else:
+            ax.set_xlim([0, nt])
         plotarea.activatepause()
         # ax.ylim([-20, 20])
         # -----------------------------------------
@@ -194,15 +224,18 @@ def run_trials(**kwargs):
             flg=0
             # plot update
             x,y = lines[evalmodel-1].get_data()
-            lines[evalmodel-1], = ax.plot(np.append(x,x[-1]+1), np.append(y,snr), colors[evalmodel-1])
+            lines[evalmodel-1].set_xdata(np.append(x,x[-1]+1))
+            lines[evalmodel-1].set_ydata(np.append(y,snr))
+            # lines[evalmodel-1], = ax.step(np.append(x,x[-1]+1), np.append(y,snr), linecolors[evalmodel-1], linewidth=1.6)
             plotarea.canvas.draw()
+
             while flg==0:
                 snridx = np.where(np.in1d(availsnr[evalmodel-1], snr))[0];
                 currentfile=random.choice([filelist[evalmodel-1][j] for j in snridx])
-                filenames[i] = currentfile
+                filenames.append(currentfile)
                 trialtitle = 'Trial ' + str(i+1) +'/' + str(nt)
 
-                respwindow = responsewindow(root, currentfile, trialtitle)
+                respwindow = responsewindow(root, os.path.join(audiofiles,currentfile), trialtitle)
                 response = respwindow.show()
                 if plotarea.pausevar.get()=='paused':
                     flg=2
@@ -215,18 +248,24 @@ def run_trials(**kwargs):
                     pickle.dump([basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
                      basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
                      basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
-                     basie_functions.xlim, evalmodel, snr], f)
+                     basie_functions.xlim, evalmodel, snr, filenames[0:-1]], f)
                 break
             print('snr', snr, 'response', np.array([[(response=='1')]]), 'model', evalmodel)
 
+            preevalmodel = evalmodel
             # calculate next snr and model
             [snr, evalmodel, m, v] = basie_functions.v_psycest(evalmodel, snr, np.array([[(response=='1')]]))
 
+            # update plot area
             infostring=''
             for j in range(nmodels):
-                infostring+=f'Model {j+1} ({reverblist[j]}): {m[0,j,0]:2.2f} \u00B1 {np.sqrt(v[0,j]):2.2f} dB\t\t'
+                infostring+=f'Model {j+1}: SRT {m[0,j,0]:2.2f} \u00B1 {np.sqrt(v[0,j]):2.2f} dB\t Slope {m[1,j,0]:2.2f} \u00B1 {np.sqrt(v[2,j]):2.2f} dB\u207B\u00B9 \n'
             infostring=infostring[0:-2]
             plotarea.textvar.set(infostring)
+
+            linessrt[preevalmodel-1].set_ydata([m[0,preevalmodel-1, 0], m[0,preevalmodel-1, 0]])
+            plotarea.canvas.draw()
+            print('test')
 
             if all(v[0,:]<5):
                 print('var is low enough')
@@ -239,8 +278,9 @@ def run_trials(**kwargs):
 
         ####### save results in a csv file #######
         nlines = len(msr[:,0])
-        df=pd.DataFrame({'ID': [ID] * nlines, 'time': [timestamp]*nlines, 'model nbr': msr[:,0], 'snr (dB)': msr[:,1], 'file':filenames[0:nlines].flatten(), 'response': msr[:,2],
+        df=pd.DataFrame({'ID': [ID] * nlines, 'time': [timestamp]*nlines, 'model nbr': msr[:,0], 'snr (dB)': msr[:,1], 'file':filenames[0:nlines], 'response': msr[:,2],
             'srt': msr[:,3], 'log-slope': msr[:,4], 'var(srt)': msr[:,5], 'var(log-slope)': msr[:,6]})
+
         df.to_csv(os.path.join(outdir, ID, timestamp, 'results.csv'), index=False)
 
         if plotarea.pausevar.get()=='active':
@@ -248,7 +288,7 @@ def run_trials(**kwargs):
                 pickle.dump([basie_functions.wq, basie_functions.xq, basie_functions.sq, basie_functions.nr, basie_functions.pr, basie_functions.qr, basie_functions.mq, basie_functions.vq,
                  basie_functions.xn, basie_functions.hn, basie_functions.hfact, basie_functions.xz, basie_functions.res, basie_functions.nres, basie_functions.nresq, basie_functions.xmm, 
                  basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
-                 basie_functions.xlim, evalmodel, snr], f)
+                 basie_functions.xlim, evalmodel, snr, filenames], f)
 
 
         plotarea.hidepause()
@@ -472,7 +512,7 @@ class plotarea:
         self.canvas.get_tk_widget().grid(row=0, column=0, sticky='w')
 
         self.textvar=StringVar(value='')
-        self.__label=Label(root, textvariable=self.textvar, font=('Arial',13))
+        self.__label=Message(root, textvariable=self.textvar, font=('Arial',13, 'bold'), width=600)
 
         self.__label.grid(row=1,column=0, sticky='we')
 
@@ -621,12 +661,7 @@ if __name__=='__main__':
     plotframe.grid_rowconfigure(2, weight=1)
     plotframe.grid_columnconfigure(0, weight=1)
     canvas=plotarea(plotframe)
-
-    # # --------- Pause button ---------
-    # pauseframe.grid_rowconfigure(0, weight=1)
-    # pauseframe.grid_columnconfigure(0, weight=1)
-
-    # pausebtn=launchbutton(pauseframe, pauseexperiment, 'Pause', [0,0,1,1])
+    canvas.hidepause()
 
     # --------- Run buttons ---------
     experframe.grid_rowconfigure(0, weight=1)
