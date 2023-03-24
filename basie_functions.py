@@ -327,40 +327,129 @@ def v_quadpeak(z):
     
     return v, x, t, m, ze
 
-def v_psycest(iq, x=None, r=None, xp=None, lf=None):
-    # ---- INPUTS ----
-    # iq = -number of models
-    # x = probe snr
-    # r = response (right or wrong)
-    # xp = model parameters
-    # lf = log file ID
-    # ---- OUTPUTS ----
-    # if iq==0 (end of trial): 
-    #    p = individual model parameters
-    #    q = parameters common to all models
-    #    msr = list of probe and snr values
+def v_psycest(iq, **kwargs):
+# V_PSYCEST estimate multiple psychometric functions
+
+# Usage: (* inputs have default values; ** optional)
+#           [xx,ii,m,v]=v_psycest(-n,*modelp,*basiep,*availsnr,**logfile) % initialize n models
+#           [xx,ii,m,v]=v_psycest(i,probesnr, response, **plotopts)     % supply a trial result to v_psycest
+#   [modelp,basiep,msr]=v_psychest(0)    % output model parameters 
+
+# Inputs: 
+#           -n            minus the number of each model
+#           modelp(:,n)   parameters for each model [list or np.array]
+#                            1  thresh  [0.75]
+#                            2  miss [0.04]
+#                            3  guess [0.1]
+#                            4  SNR min [-20]
+#                            5  SNR max [20]
+#                            6  Slope min (over-riden if < basiep.sl) [0]
+#                            7  Slope max [0.5]
+#           basiep(:)     parameters common to all models [dict]
+#                            1  nx  number of SNR values in pdf [40]
+#                            2  ns  number of slope values in pdf [21]
+#                            3  nh  number of probe SNR values to evaluate [30]
+#                            4  cs  weighting of slope relative to SRT in cost function [1]
+#                            5  dh  minimum step size in dB for probe SNRs [0.2]
+#                            6  sl  min slope at threshold (must be >0) [0.005]
+#                            7  kp  number of std deviations of the pdfs to keep [4]
+#                            8  hg  amount to grow expected gains in ni trials [1.3]
+#                            9  cf  cost function: 1=variance, 2=v_entropy [2]
+#                           10  pm  psychometric model: 1=logistic, 2=cumulative gaussian [1]
+#                           11  lg  use log slope in pdf: 0=no, 1=yes [1]
+#                           12  pp  Number of prior standard deviations in initial semi-range [1]
+#                           13  pf  Probability floor (integrated over entire grid) [0.0001]
+#                           14  ts  Number of std devs to explore [2]
+#                           15  dp  Maximum probe SNR shift (dB) [10]
+#                           16  it  Grid interpolation threshold [0.5]
+#                           17  at  Axis change threshold [0.1]
+#                           18  la  Look 2-ahead when choosing probe [1]
+#                           19  op  Outlier probability [0.01]
+#                           20  rx  Minimum range factor per iteration [0.5]
+#           availsnr      list of available probe SNR values [np.array]
+#           logfile       log file ID
+#           i             model probed (indexing starts at 1)
+#           probesnr      probe SNR value used
+#           response      response (True or False)
+#           plotopts      plot option string: {NOT YET IMPLEMENTED}
+#                           'p' Plot pdf
+#                           'h' Plot probe history
+#                           'x' Plot expected cost function for probe SNRs
+#                           'c' Plot cost function evolution
+#
+#                    v_psycest(i,o)       % plot pdf of model i with plot options o
+#        [xx,ii,m,v,mr,vr]=v_psycest(i,o) % Determine robust outputs in addition expcluding outliers [takes longer]
+#              [p,q,msr]=psychest(0)    % output model parameters (or print them if no outputs)
+# Outputs:
+#           xx            recommended probe SNR
+#           ii            recommended model to probe next
+#           m(2,n,3)      estimated srt and slope of all models
+#                              m(:,:,1:3,n)  respectively the mean, mode (MAP) and marginal mode estimates
+#           v(3,n)        covariance matrix entries:
+#                              [var(srt) cov(srt,slope) var(slope)]'
+#           mr(2,n,3)     robust estimated srt and slope of all models
+#           vr(3,n)       robust estimated covariance matrix entries
+#           msr(:,3)      List probe snrs and results: [model probe-snr result]
+
     global wq, xq, sq, nr, pr, qr, mq, vq, xn, hn, hfact, xz, res, nres, nresq, xmm, mq0, pq0, wfl, sqmin, LOG, mqr, vqr, nresr, xlim
     if iq < 0: # initialization
-        if lf:
-            LOG = lf
-            print("******************************")
-            print("psycest Initialization: {}".format(str(datetime.datetime.now())))
-            print("******************************")
+        # when iq<0, inputs required are:
+        # model parameters (modelp). Must be a 7x1 or (7xni) np array.
+        
+        # ---------- check kwargs ---------- #
+        if 'modelp' not in kwargs:
+            warnings.warn('No model parameters found. Using defaults')
+            x = None
+        else:
+            x = kwargs.get('modelp')
+            
+        if 'basiep' not in kwargs:
+            warnings.warn('No basie parameters found. Using defaults')
+            r = None
+        else:
+            r = kwargs.get('basiep')
+        
+        if 'availsnr' not in kwargs:
+            warnings.warn('No available snr found. Using defaults')
+            xp = None
+        else:
+            xp = kwargs.get('availsnr')
+            
+        if 'logfile' in kwargs:
+            LOG = kwargs.get('logfile')
+            with open(LOG, 'a') as f:
+                f.write("******************************\n")
+                f.write("psycest Initialization: {}\n".format(str(datetime.datetime.now())))
+                f.write("******************************\n")
         else:
             LOG = None
+        
+        # initialise number of models
         ni = -iq                 # number of models
         nres = 0                 # total number of probe-results so far
         nresq = np.atleast_2d(np.zeros((1,ni)))    # number of probe-results for each model
         res = np.atleast_2d(np.zeros(7))        # array for saving results [expands as needed]
-        pr = np.tile([0.75, 0.04, 0.1, -20, 20, 0, 0.5], (ni, 1)).T         # default parameters
         
+        
+        # initialise model specific parameters
+        pr = np.tile([0.75, 0.04, 0.1, -20, 20, 0, 0.5], (ni, 1)).T         # default parameters
         if x is not None:
+            if isinstance(x, list):
+                x=np.tile(x, (1, 1)).T
+            if 7 not in np.shape(x):
+                raise ValueError('Requires 7 modelp')
+            if len(np.shape(x))==1:
+                x = np.atleast_2d(x)
+            if np.shape(x)[1]==7 and np.shape(x)[0]!=7:
+                x = x.T
             if x.shape[1] > 1:
                 if x.shape[1] > ni:
                     raise ValueError("initialization parameter argument has too many columns")
                 pr[:x.shape[0], :x.shape[1]] = x
             else:
                 pr[:x.shape[0], :] = np.tile(x, (1, ni))
+        
+        # initialise parameters common to all models
         nr = np.array([40, 21, 30, 1, 0.2, 0.02, 4, 1.3, 2, 1, 1, 1, 0.0001, 2, 10, 0.5, 0.1, 1, 0.01, 0.5])                      # default parameter values
         nrf = np.array(['nx', 'ns', 'nh', 'cs', 'dh', 'sl', 'kp', 'hg', 'cf', 'pm', 'lg', 'pp', 'pf', 'ts', 'dp', 'it', 'at', 'la', 'op', 'rx']).T     # parameter field names
         numnr = len(nr)
@@ -425,6 +514,8 @@ def v_psycest(iq, x=None, r=None, xp=None, lf=None):
         hfact = nr[7] ** (1 / ni)  # growth factor to ensure that no model is neglected for too long
         xn = mq0[0, :].copy()  # start at mean value
         xmm = np.vstack((xn, xn))  # min/max of probe values for each model
+        
+        # initialise available snrs
         if xp is not None and len(xp) > 0:
             if xp.ndim>1:
                 xz = np.atleast_2d(xp)
@@ -437,17 +528,30 @@ def v_psycest(iq, x=None, r=None, xp=None, lf=None):
             xz = [None] * ni  # make empty list
     elif iq>0:
         # iq>0 means update or plot model iq
+        
         # first check the plotting options
-        if r is None:
-            if x is not None:
-                po=x
-            else:
-                po=''
+        if 'plotopts' in kwargs:
+            po = kwargs.get('plotopts')
         else:
-            if xp is not None:
-                po=xp
-            else:
-                po=''
+            po = ''
+            
+        if 'probesnr' in kwargs:
+            x = kwargs.get('probesnr')
+        else:
+            x = None
+            
+        if 'response' in kwargs:
+            r = kwargs.get('response')
+            
+            if isinstance(r, bool):
+                r=np.array([[(r)]])
+            elif isinstance(r, int) or isinstance(r, float):
+                r=np.array([[(r=='1')]])
+                
+            
+        else:
+            r = None
+
         # now get parameters of current model (iq)
         nxq = nr[0] # number of snr values
         nsq = nr[1] # number of slope values
@@ -579,6 +683,7 @@ def v_psycest(iq, x=None, r=None, xp=None, lf=None):
             sqis = np.exp(sqi) / qr[3, iq-1] # inverse std dev of gaussian (proportional to slope)
         else:
             sqis = sqi / qr[3, iq-1] # inverse std dev of gaussian (proportional to slope)
+            
         if r is not None: # CHECK THAT THIS ACHIEVES THE SAME RESULT
             if nres >= res.shape[0]:  # ensure there is space for a new result
                 res = np.vstack((res, np.zeros((nres, 7))))
@@ -653,17 +758,19 @@ def v_psycest(iq, x=None, r=None, xp=None, lf=None):
         vq[:, iq-1] = np.array([xv, sxv.item(), sv])  # save covariance matrix
         xh = np.dot(px, np.log(px).T) * (xqi[0] - xqi[1])  # differential v_entropy h(x0)
         sh = np.dot(ps.T, np.log(ps)) * (sqi[0] - sqi[1])  # differential v_entropy h(s0)
-        if r is not None and xp is None:
+        
+        # if not plotting
+        if po == '':
             if nr[8] == 1:  # cost function: 1=variance, 2=v_entropy
                 res[nres-1, 3:7] = [xe, se, xv, sv]  # save info for plotting history
             elif nr[8] == 2:
                 res[nres-1, 3:7] = [xe, se, xh, sh]  # find the minimum of cost function
         
         ################################################################################
+        ##### Calculate ROBUST ESTIMATES ###############################################
         ################################################################################
-        ##### IMPLEMENT ROBUST ESTIMATES ###############################################
-        ################################################################################
-        ################################################################################
+        
+        
         
         if len(xz[iq-1])==0:
             print('Have not implement free SNR estimation yet, matlab lines 678-709')

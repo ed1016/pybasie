@@ -145,7 +145,7 @@ def run_trials(**kwargs):
             for i in range(nmodels):
                 snrlist.append(np.sort(list(set(availsnr[i]))))
             snrlist = np.asarray(snrlist)
-
+        print(snrlist)
         # ------------ initialise model ------------
         # TODO: if there are persistent variables saved (i.e. paused experiment), load them and skip init
         IDmatches = check_ID_day(outdir, ID)
@@ -153,10 +153,10 @@ def run_trials(**kwargs):
             IDmatches.insert(0, 'New')
             selectedID = listselect(root, IDmatches).show()
             if selectedID=='New':
-                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
                 filenames=[]
             else:
-                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+                [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
                 if os.path.isfile(os.path.join(selectedID,'finished.pkl')):
                     pklfile=os.path.join(selectedID,'finished.pkl')
                 elif os.path.isfile(os.path.join(selectedID,'paused.pkl')):
@@ -172,7 +172,7 @@ def run_trials(**kwargs):
                     basie_functions.mq0, basie_functions.pq0, basie_functions.wfl, basie_functions.sqmin, basie_functions.LOG, basie_functions.mqr, basie_functions.vqr, basie_functions.nresr,
                     basie_functions.xlim, evalmodel, snr, filenames] = pickle.load(f)
         else:
-            [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, np.repeat(modelp, nmodels, axis=1), basiep, snrlist)
+            [snr, evalmodel,_,_] = basie_functions.v_psycest(-nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
             filenames=[]
 
         os.makedirs(os.path.join(outdir, ID, timestamp), exist_ok=True)
@@ -254,7 +254,8 @@ def run_trials(**kwargs):
 
             preevalmodel = evalmodel
             # calculate next snr and model
-            [snr, evalmodel, m, v] = basie_functions.v_psycest(evalmodel, snr, np.array([[(response=='1')]]))
+            [snr, evalmodel, m, v] = basie_functions.v_psycest(evalmodel, probesnr=snr, response=int(response))
+
 
             # update plot area
             infostring=''
@@ -265,7 +266,6 @@ def run_trials(**kwargs):
 
             linessrt[preevalmodel-1].set_ydata([m[0,preevalmodel-1, 0], m[0,preevalmodel-1, 0]])
             plotarea.canvas.draw()
-            print('test')
 
             if all(v[0,:]<5):
                 print('var is low enough')
@@ -570,6 +570,9 @@ class listselect(Toplevel):
         # self.responsebtns.focus_force()
         self.wait_window()
         return self.responseVar.get()
+
+# class psycplot(Toplevel):
+#     def __init__(self, root):
 
 if __name__=='__main__':
     # --------- instantiate GUI ---------
