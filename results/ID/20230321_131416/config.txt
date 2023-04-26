@@ -1,1 +1,0 @@
-time: 20230321_131416 	 subjectID: ID 	 audio folder: /Users/emiliedolne/Library/CloudStorage/OneDrive-ImperialCollegeLondon/PhD/Year 3/Smartter hear/psychometrics/audio 	 model parameters: [  0.5   0.1   0.1 -20.   20.    0.    0.5] 	 reverb list: ['Building_Lobby' 'office1'] 	 ntrials: 4

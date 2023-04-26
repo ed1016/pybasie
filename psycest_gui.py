@@ -40,7 +40,6 @@ def play_audio(**kwargs):
         audiovar.set('True')
     else:
         print('already played audio')
-
 def extractfilelist(folderpath):
     foldfiles = os.listdir(folderpath)
 
@@ -62,7 +61,6 @@ def extractfilelist(folderpath):
         availsnr.append(tmpavailsnr)
 
     return reverblist, files, availsnr
-
 def extractfilelist_practice(folderpath):
     foldfiles = os.listdir(folderpath)
     files = []
@@ -72,7 +70,6 @@ def extractfilelist_practice(folderpath):
             files.append(filename)
             availsnr.append(float(filename[filename.find("snr_")+len("snr_"):filename.find("_db")]))
     return files, availsnr
-
 def check_ID_day(outfolder, ID):
     foldfiles = os.listdir(outfolder)
     timestamp = dt.now().strftime("%Y%m%d")
@@ -84,6 +81,7 @@ def check_ID_day(outfolder, ID):
                 if timestamp in j:
                     matches.append(os.path.join(outfolder,i, j))
     return matches
+
 
 def run_practice(**kwargs):
     nt = int(kwargs.get('ntrials'))
@@ -122,6 +120,9 @@ def run_trials(**kwargs):
     minsnr= float(kwargs.get('minsnr').get())
     maxsnr= float(kwargs.get('maxsnr').get())
 
+    method = kwargs.get('method').get()
+    methodfiles=kwargs.get('methodfiles').get().split(',')
+
     modelp=np.array([[0.5], [mrate], [grate], [minsnr], [maxsnr], [0], [0.5]])
 
     slopeweight=kwargs.get('slopeweight').get()
@@ -159,6 +160,7 @@ def run_trials(**kwargs):
                 srt_estimator=basie_estimator()
                 [snr, evalmodel,_,_] = srt_estimator.initialise(nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
                 filenames=[]
+                choices=[]
             else:
                 if os.path.isfile(os.path.join(selectedID,'finished.pkl')):
                     pklfile=os.path.join(selectedID,'finished.pkl')
@@ -168,14 +170,15 @@ def run_trials(**kwargs):
                     print('no .plk file')
 
                 with open(pklfile, 'rb') as f:
-                    [srt_estimator, evalmodel, snr, filenames]=pickle.load(f)
+                    [srt_estimator, evalmodel, snr, filenames, choices]=pickle.load(f)
         else:
             srt_estimator=basie_estimator()
             [snr, evalmodel,_,_] = srt_estimator.initialise(nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
             filenames=[]
+            choices=[]
 
         os.makedirs(os.path.join(outdir, ID, timestamp), exist_ok=True)
-
+        varcount=0
         # ------------ plot parameters ------------
         plotsnr=[]
         plotarea.fig.clf()
@@ -230,31 +233,41 @@ def run_trials(**kwargs):
             # lines[evalmodel-1], = ax.step(np.append(x,x[-1]+1), np.append(y,snr), linecolors[evalmodel-1], linewidth=1.6)
             plotarea.canvas.draw()
 
-            while flg==0:
-                snridx = np.where(np.in1d(availsnr[evalmodel-1], snr))[0];
+            # -- get response from response window --
+            snridx = np.where(np.in1d(availsnr[evalmodel-1], snr))[0];
+            try: # try unique options
+                templist=[]
+                for j in snridx:
+                    if filelist[evalmodel-1][j] not in filenames:
+                        templist.append(filelist[evalmodel-1][j])
+                currentfile=random.choice(templist)
+            except: # if you have tried everything already
                 currentfile=random.choice([filelist[evalmodel-1][j] for j in snridx])
-                filenames.append(currentfile)
-                trialtitle = 'Trial ' + str(i+1) +'/' + str(nt)
-                plotarea.filevar.set("Playing: "+currentfile)
 
-                respwindow = responsewindow(root, os.path.join(audiofiles,currentfile), trialtitle)
-                response = respwindow.show()
+
+            filenames.append(currentfile)
+            trialtitle = 'Trial ' + str(i+1) +'/' + str(nt)
+            plotarea.filevar.set("Playing: "+currentfile)
+            while flg==0:
+                if method=='MRT [Hurr.]':
+                    response, wordchoice = responsewindow_hurricane(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle).show()
+
                 if plotarea.pausevar.get()=='paused':
                     flg=2
                 elif response:
                     flg=1
 
-
+            choices.append(wordchoice)
             if plotarea.pausevar.get()=='paused':
                 print('experiment paused')
                 with open(os.path.join(outdir, ID, timestamp, 'paused.pkl'),'wb') as f:
-                    pickle.dump([srt_estimator, evalmodel, snr, filenames[0:-1]],f)
+                    pickle.dump([srt_estimator, evalmodel, snr, filenames[0:-1], choices[0:-1]],f)
                 break
             print('snr', snr, 'response', np.array([[(response=='1')]]), 'model', evalmodel)
 
             preevalmodel = evalmodel
             # calculate next snr and model
-            [snr, evalmodel, m, v] = srt_estimator.update(evalmodel-1, probesnr=snr, response=int(response))
+            [snr, evalmodel, m, v] = srt_estimator.update(evalmodel-1, probesnr=snr, response=int(response=='1'))
 
             # update plot area
             infostring=''
@@ -266,9 +279,13 @@ def run_trials(**kwargs):
             linessrt[preevalmodel-1].set_ydata([m[0,preevalmodel-1, 0], m[0,preevalmodel-1, 0]])
             plotarea.canvas.draw()
 
-            if all(v[0,:]<5):
-                print('var is low enough')
-                break
+            if all(v[0,:]<1):
+                varcount+=varcount
+                if varcount>4:
+                    print('var is low enough')
+                    break
+            else:
+                varcount=0
         [p, q, msr] = srt_estimator.summary()
 
         ####### save a config file with details of experiment #######
@@ -280,18 +297,87 @@ def run_trials(**kwargs):
         print(nlines)
         print(msr)
         print(filenames)
-        df=pd.DataFrame({'ID': [ID] * nlines, 'time': [timestamp]*nlines, 'model nbr': msr[:,0], 'snr (dB)': msr[:,1], 'file':filenames[0:nlines], 'response': msr[:,2],
-            'srt': msr[:,3], 'log-slope': msr[:,4], 'var(srt)': msr[:,5], 'var(log-slope)': msr[:,6]})
+        df=pd.DataFrame({'ID': [ID] * nlines, 'time': [timestamp]*nlines, 'model nbr': msr[:,0], 'snr (dB)': msr[:,1], 'file':filenames[0:nlines], 'choice':choices[0:nlines],
+         'correct?': msr[:,2],'srt': msr[:,3], 'log-slope': msr[:,4], 'var(srt)': msr[:,5], 'var(log-slope)': msr[:,6]})
 
         df.to_csv(os.path.join(outdir, ID, timestamp, 'results.csv'), index=False)
 
         if plotarea.pausevar.get()=='active':
             with open(os.path.join(outdir, ID, timestamp, 'finished.pkl'),'wb') as f:
-                pickle.dump([srt_estimator, evalmodel, snr, filenames],f)
-
+                pickle.dump([srt_estimator, evalmodel, snr, filenames, choices],f)
 
         plotarea.hidepause()
         plotarea.pausevar.set('active')
+
+class responsewindow_hurricane(Toplevel):
+    def __init__(self, root, audiofile, reftxt, senttxt,  titlestr):
+        # need to add response buttons based on info for list in .txt files
+        # the audiofile should define the true/false value of buttons
+        # start panel should have a rolldown menu giving the type of feedback needed
+        Toplevel.__init__(self, root)
+        self.title(titlestr)
+        self.geometry("+%d+%d" %(root.winfo_x()+500, root.winfo_y()+300))
+
+        self.responseVar = StringVar(value='')
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(2, weight=1)
+
+        self.grid_columnconfigure(0, weight=1)
+
+        self.audioVar=StringVar()
+        self.audiobtn = launchbutton(self, play_audio, 'Play', [0,0,1,1], audiofile=audiofile, audioVar=self.audioVar)
+
+        # with open(recordtxt, 'r') as file:
+        #     self.nwords = file.readline().split()[-1]
+
+        shortaudio=audiofile.split("/")[-1]
+        fileID="_".join(shortaudio.split("_", 2)[:2])
+
+        fileID.replace('\n', '')
+        with open(reftxt) as file:
+            for num, line in enumerate(file, 1):
+                if fileID in line:
+                    self.listnbr=num-1
+                    print(line.split('\t'))
+                    for i in range(len(line.split('\t')[1:])):
+                        if fileID in line.split('\t')[i+1]:
+                            idxinlist=i
+
+        with open(senttxt) as file:
+            self.sentences=file.readlines()[self.listnbr].split('\t')[1:]
+
+        self.correctsentence=self.sentences[idxinlist]
+        print(fileID, self.correctsentence)
+        self.responsebtns = responsebutton_wordselect(self, self.responseVar, self.sentences, [1,0,1,1])
+
+        # self.confirmframe = confirmbutton(self.parent, confirmVar, [2,0,1,1])
+        self.confirmbutton = Button(self, text='Confirm', width=10, command=lambda: self.confirmresponse())
+
+        self.confirmbutton.grid(row=2, column=0)
+
+    def confirmresponse(self):
+        if not self.audioVar.get():
+            print('listen to the audio!')
+        elif not self.responseVar.get():
+            print('pick a response!')
+        else:
+            self.destroy()
+
+    def show(self):
+        self.wm_deiconify()
+        # self.responsebtns.focus_force()
+        self.wait_window()
+        if not self.responseVar.get():
+            return '', self.responseVar.get()
+        elif self.responseVar.get()==self.correctsentence:
+            return '1', self.responseVar.get()
+        else:
+            return '0', self.responseVar.get()
+
+    def closewindow(self):
+        self.destroy()
 
 class responsewindow(Toplevel):
     def __init__(self, root, audiofile, titlestr):
@@ -334,7 +420,194 @@ class responsewindow(Toplevel):
 
     def closewindow(self):
         self.destroy()
+class responsebutton:
+    def __init__(self, root, vaript=None, pos=[0,0,1,1]):
+        self.parent = Frame(root) # frame to hold the box and labels
 
+        if vaript is None:
+            self.var = StringVar()
+        else :
+            self.var = vaript # value of the entry
+
+        self.boxyes = Radiobutton(self.parent, text='Yes', width=10, variable=vaript, value=1)
+        self.boxno = Radiobutton(self.parent, text='No', width=10, variable=vaript, value=0)
+
+        self.place_on_grid(pos) # place things on the grid
+
+
+    def place_on_grid(self, newpos):
+        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
+        self.parent.grid_rowconfigure(0,weight=1)
+        self.parent.grid_columnconfigure(0,weight=1)
+
+        self.boxyes.grid(row=0, column=0, sticky='s')
+        self.boxno.grid(row=0, column=1, sticky='s')
+
+    def update_val(self, newval):
+        self.var.set(newval)
+class responsebutton_wordselect:
+    def __init__(self, root, vaript=None, sentences='', pos=[0,0,1,1]):
+        self.parent = Frame(root) # frame to hold the box and labels
+
+        if vaript is None:
+            self.var = StringVar()
+        else :
+            self.var = vaript # value of the entry
+
+        self.buttons=[]
+        for i in range(len(sentences)):
+            self.buttons.append(Radiobutton(self.parent, text=sentences[i].replace('\n', ''), variable=vaript, value=sentences[i].replace('\n', ''), justify='left'))
+        self.inaudible=Radiobutton(self.parent, text="Don't know", variable=vaript, value="Don't know")
+        self.place_on_grid(pos) # place things on the grid
+
+    def place_on_grid(self, newpos):
+        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
+        self.parent.grid_rowconfigure(0,weight=1)
+        self.parent.grid_rowconfigure(1,weight=1)
+        self.parent.grid_columnconfigure(0,weight=1)
+
+        for i in range(len(self.buttons)):
+            self.buttons[i].grid(row=0, column=i, sticky='ws')
+        
+        self.inaudible.grid(row=0, column=i+1, sticky='s')
+    def update_val(self, newval):
+        self.var.set(newval)
+
+class browsebutton:
+    def __init__(self, root, lbl='Default', vaript=None, pos=[0,0,1,1]):
+        self.parent = Frame(root) # frame to hold the box and labels
+
+        if vaript is None:
+            self.var = StringVar()
+        else :
+            self.var = vaript # value of the entry
+        self.__lblfull = StringVar(self.parent, value='Value: ' +str(self.var.get()))
+
+
+        self.title = Label(self.parent, text=lbl, anchor='n', font=('Arial', 12, 'bold')) # title
+        # self.box = Edit(self.parent, textvariable=self.var, justify='right', width=12, validate='key', validatecommand=vcmd, invalidcommand=ivcmd) # box entry
+        self.box = Button(self.parent, text='Browse...', command=self.browse_computer, width=10)
+        self.varlbl = Message(self.parent, font=('Arial', 12), textvariable=self.__lblfull) # label with var value
+
+        self.place_on_grid(pos) # place things on the grid
+
+        self.var.trace('w', self.__update_varlbl)
+
+    def browse_computer(self):
+        # self.parent.withdraw()
+        folder_selected = filedialog.askdirectory(initialdir=os.getcwd())
+        self.var.set(folder_selected)
+    
+
+    def place_on_grid(self, newpos):
+        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
+        self.parent.grid_rowconfigure(0,weight=1)
+
+        self.title.grid(row=0, column=0, sticky='w')
+        self.box.grid(row=1, column=0, sticky='s')
+        self.varlbl.grid(row=2,column=0, sticky='nw')
+
+    def update_val(self, newval):
+        self.var.set(newval)
+
+    def __update_varlbl(self, *args):
+        self.__lblfull.set('Value: ' +str(self.var.get()))
+class browsebuttonfile:
+    def __init__(self, root, lbl='Default', vaript=None, pos=[0,0,1,1]):
+        self.parent = Frame(root) # frame to hold the box and labels
+
+        if vaript is None:
+            self.var = StringVar()
+        else :
+            self.var = vaript # value of the entry
+        self.__lblfull = StringVar(self.parent, value='Value: ' +str(self.var.get()))
+
+
+        self.title = Label(self.parent, text=lbl, anchor='n', font=('Arial', 12, 'bold')) # title
+        # self.box = Edit(self.parent, textvariable=self.var, justify='right', width=12, validate='key', validatecommand=vcmd, invalidcommand=ivcmd) # box entry
+        self.box = Button(self.parent, text='Browse...', command=self.browse_computer, width=10)
+        self.varlbl = Message(self.parent, font=('Arial', 12), textvariable=self.__lblfull) # label with var value
+
+        self.place_on_grid(pos) # place things on the grid
+
+        self.var.trace('w', self.__update_varlbl)
+
+    def browse_computer(self):
+        # self.parent.withdraw()
+        folder_selected = filedialog.askopenfilename(initialdir=os.getcwd())
+        self.var.set(folder_selected)
+    
+
+    def place_on_grid(self, newpos):
+        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
+        self.parent.grid_rowconfigure(0,weight=1)
+
+        self.title.grid(row=0, column=0, sticky='w')
+        self.box.grid(row=1, column=0, sticky='s')
+        self.varlbl.grid(row=2,column=0, sticky='nw')
+
+    def __update_varlbl(self, *args):
+        self.__lblfull.set('Value: ' +str(self.var.get()))
+class launchbutton:
+    def __init__(self, root, launchfct=defaultfct,lbl='Default',pos=[0,0,1,1], **kargs):
+        self.parent = Frame(root) # frame to hold the box and labels
+        self.launchfct = launchfct
+
+        self.box = Button(self.parent, text=lbl, command=lambda: self.start_function(launchfct,**kargs), width=7)
+
+        self.place_on_grid(pos) # place things on the grid
+
+    def place_on_grid(self, newpos):
+        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
+        self.parent.grid_rowconfigure(0,weight=1)
+
+        self.box.grid(row=0, column=0, sticky='s')
+
+    def start_function(self,launchfct, **kwargs):
+        self.box['state']='disabled'
+        launchfct(**kwargs)
+        self.box['state']='normal'
+class plotarea:
+    def __init__(self, root, **kargs):
+        self.fig=plt.Figure()
+        # self.ax=self.fig.add_subplot()
+        # self.line, = self.ax.plot(0,0)
+
+        # current file info
+        self.filevar=StringVar(value="Playing:")
+        self.currentfile=Label(root, textvariable=self.filevar, font=('Arial', 13))
+        self.currentfile.grid(row=0, column=0, sticky='w')
+
+        # plot
+        self.canvas=FigureCanvasTkAgg(self.fig, master=root)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().grid(row=1, column=0, sticky='w')
+
+        # estimate values
+        self.textvar=StringVar(value='')
+        self.__label=Message(root, textvariable=self.textvar, font=('Arial',13, 'bold'), width=600)
+        self.__label.grid(row=2,column=0, sticky='we')
+
+        # pause buttons
+        self.pausevar=StringVar(value='active', master=root)
+        self.pausebtn=launchbutton(root, self.pauseexperiment, 'Pause', [3,0,1,1])
+        self.hidepause
+        # self.pausebtn.grid(row=2,column=0, sticky='we')
+
+    def activatepause(self):
+        self.pausebtn.place_on_grid([3,0,1,1])
+
+    def hidepause(self):
+        self.pausebtn.box.grid_forget()
+
+    def pauseexperiment(self):
+        self.pausevar.set('paused')
+        windowitems=[]
+        for k,v in self.canvas.get_tk_widget().master.master.children.items():
+            if 'responsewindow' in k:
+                windowitems.append(v)
+        for i in windowitems:
+            i.closewindow()
 class textentry:
     def __init__(self, root, lbl='Default', vaript=None, pos=[0,0,1,1], range=None):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -407,140 +680,8 @@ class textentry:
         self.box.grid(row=1, column=0, sticky='s')
         self.varlbl.grid(row=2,column=0, sticky='nw')
 
-    def update_val(self, newval):
-        self.var.set(newval)
-
     def __update_varlbl(self, *args):
         self.__lblfull.set('Value: ' +str(self.var.get()))
-
-class responsebutton:
-    def __init__(self, root, vaript=None, pos=[0,0,1,1]):
-        self.parent = Frame(root) # frame to hold the box and labels
-
-        if vaript is None:
-            self.var = StringVar()
-        else :
-            self.var = vaript # value of the entry
-
-        self.boxyes = Radiobutton(self.parent, text='Yes', width=10, variable=vaript, value=1)
-        self.boxno = Radiobutton(self.parent, text='No', width=10, variable=vaript, value=0)
-
-        self.place_on_grid(pos) # place things on the grid
-
-
-    def place_on_grid(self, newpos):
-        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
-        self.parent.grid_rowconfigure(0,weight=1)
-        self.parent.grid_columnconfigure(0,weight=1)
-
-        self.boxyes.grid(row=0, column=0, sticky='s')
-        self.boxno.grid(row=0, column=1, sticky='s')
-
-    def update_val(self, newval):
-        self.var.set(newval)
-
-class browsebutton:
-    def __init__(self, root, lbl='Default', vaript=None, pos=[0,0,1,1]):
-        self.parent = Frame(root) # frame to hold the box and labels
-
-        if vaript is None:
-            self.var = StringVar()
-        else :
-            self.var = vaript # value of the entry
-        self.__lblfull = StringVar(self.parent, value='Value: ' +str(self.var.get()))
-
-
-        self.title = Label(self.parent, text=lbl, anchor='n', font=('Arial', 12, 'bold')) # title
-        # self.box = Edit(self.parent, textvariable=self.var, justify='right', width=12, validate='key', validatecommand=vcmd, invalidcommand=ivcmd) # box entry
-        self.box = Button(self.parent, text='Browse...', command=self.browse_computer, width=10)
-        self.varlbl = Message(self.parent, font=('Arial', 12), textvariable=self.__lblfull) # label with var value
-
-        self.place_on_grid(pos) # place things on the grid
-
-        self.var.trace('w', self.__update_varlbl)
-
-    def browse_computer(self):
-        # self.parent.withdraw()
-        folder_selected = filedialog.askdirectory(initialdir=os.getcwd())
-        self.var.set(folder_selected)
-    
-
-    def place_on_grid(self, newpos):
-        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
-        self.parent.grid_rowconfigure(0,weight=1)
-
-        self.title.grid(row=0, column=0, sticky='w')
-        self.box.grid(row=1, column=0, sticky='s')
-        self.varlbl.grid(row=2,column=0, sticky='nw')
-
-    def update_val(self, newval):
-        self.var.set(newval)
-
-    def __update_varlbl(self, *args):
-        self.__lblfull.set('Value: ' +str(self.var.get()))
-
-class launchbutton:
-    def __init__(self, root, launchfct=defaultfct,lbl='Default',pos=[0,0,1,1], **kargs):
-        self.parent = Frame(root) # frame to hold the box and labels
-        self.launchfct = launchfct
-
-        self.box = Button(self.parent, text=lbl, command=lambda: self.start_function(launchfct,**kargs), width=7)
-
-        self.place_on_grid(pos) # place things on the grid
-
-    def place_on_grid(self, newpos):
-        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
-        self.parent.grid_rowconfigure(0,weight=1)
-
-        self.box.grid(row=0, column=0, sticky='s')
-
-    def start_function(self,launchfct, **kwargs):
-        self.box['state']='disabled'
-        launchfct(**kwargs)
-        self.box['state']='normal'
-
-class plotarea:
-    def __init__(self, root, **kargs):
-        self.fig=plt.Figure()
-        # self.ax=self.fig.add_subplot()
-        # self.line, = self.ax.plot(0,0)
-
-        # current file info
-        self.filevar=StringVar(value="Playing:")
-        self.currentfile=Label(root, textvariable=self.filevar, font=('Arial', 13))
-        self.currentfile.grid(row=0, column=0, sticky='w')
-
-        # plot
-        self.canvas=FigureCanvasTkAgg(self.fig, master=root)
-        self.canvas.draw()
-        self.canvas.get_tk_widget().grid(row=1, column=0, sticky='w')
-
-        # estimate values
-        self.textvar=StringVar(value='')
-        self.__label=Message(root, textvariable=self.textvar, font=('Arial',13, 'bold'), width=600)
-        self.__label.grid(row=2,column=0, sticky='we')
-
-        # pause buttons
-        self.pausevar=StringVar(value='active', master=root)
-        self.pausebtn=launchbutton(root, self.pauseexperiment, 'Pause', [3,0,1,1])
-        self.hidepause
-        # self.pausebtn.grid(row=2,column=0, sticky='we')
-
-    def activatepause(self):
-        self.pausebtn.place_on_grid([3,0,1,1])
-
-    def hidepause(self):
-        self.pausebtn.box.grid_forget()
-
-    def pauseexperiment(self):
-        self.pausevar.set('paused')
-        windowitems=[]
-        for k,v in self.canvas.get_tk_widget().master.master.children.items():
-            if 'responsewindow' in k:
-                windowitems.append(v)
-        for i in windowitems:
-            i.closewindow()
-
 class listselect(Toplevel):    
     def __init__(self, root, filelist):
         
@@ -575,9 +716,47 @@ class listselect(Toplevel):
         # self.responsebtns.focus_force()
         self.wait_window()
         return self.responseVar.get()
+class dropdownmenu():
+    def __init__(self, root, lbl='Default', vaript=None, menuopts=['Default'], pos=[0,0,1,1]):
+        self.parent = Frame(root)
 
-# class psycplot(Toplevel):
-#     def __init__(self, root):
+        if vaript is None:
+            self.var = StringVar()
+        else :
+            self.var = vaript # value of the entry
+        
+        self.methodfiles=[]
+        self.methodfilesvar=StringVar(self.parent)
+        self.title = Label(self.parent, text=lbl, anchor='n', font=('Arial', 12, 'bold')) # title
+        self.menu = OptionMenu(self.parent, self.var, *menuopts, command=self.getfiles)
+        self.varlbl = Label(self.parent, textvariable=StringVar(value=' '), font=('Arial', 12))
+        self.menu.config(width=8, height=1)
+        self.place_on_grid(pos)
+
+    def place_on_grid(self, newpos):
+        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
+        self.parent.grid_rowconfigure(0,weight=1)
+        self.parent.grid_columnconfigure(0,weight=1)
+
+        self.title.grid(row=0, column=0, sticky='w')
+        self.menu.grid(row=1, column=0, sticky='s', pady=4)
+        self.varlbl.grid(row=2,column=0, sticky='nw')
+
+    def getfiles(self, event):
+        # print(self.var.get())
+        for i in self.methodfiles:
+            i.parent.destroy()
+
+        self.methodfiles=[]
+        # self.methodfilesvar=[]
+        if self.var.get()=='MRT [Hurr.]':
+            idfilevar = StringVar(self.parent,value='recordings.txt')
+            sentencefilevar = StringVar(self.parent,value='sentences.txt')
+            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
+            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
+            self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
+        else:
+            print('other')
 
 if __name__=='__main__':
     # --------- instantiate GUI ---------
@@ -629,7 +808,8 @@ if __name__=='__main__':
     paramframe.grid_columnconfigure(1, weight=1)
     paramframe.grid_columnconfigure(2, weight=1)
 
-    audiofilevar=StringVar(paramframe, value='/Users/emiliedolne/Library/CloudStorage/OneDrive-ImperialCollegeLondon/PhD/Year 3/Smartter hear/psychometrics/newaudio')
+
+    audiofilevar=StringVar(paramframe, value='/Users/emiliedolne/Library/CloudStorage/OneDrive-ImperialCollegeLondon/PhD/Year 3/Smartter hear/psychometrics/audio/mrt')
     audiobtn=browsebutton(paramframe, 'Audio files: ', audiofilevar, [0,1,1,1])
 
     outputdirvar=StringVar(paramframe, value='results')
@@ -637,6 +817,12 @@ if __name__=='__main__':
 
     subjectIDvar=StringVar(paramframe, value='ID')
     subjectID=textentry(paramframe, 'Subject ID: ', subjectIDvar, [0,0,1,1])
+
+    methodvar=StringVar(paramframe, value='MRT [Hurr.]')
+    methodmenu=dropdownmenu(paramframe, 'Test type: ', methodvar, ['MRT [Hurr.]', 'other'], [1,0,1,1])
+
+    # reffilesvar=StringVar(paramframe, value=['reference.txt', 'sentences.txt'])
+    # reffiles=browsebuttonfiles(paramframe, 'Reference files: ', reffilesvar, [1,1,1,1])
 
     # --------- Advanced parameters ---------
     advancedparamframe.grid_rowconfigure(0, weight=1)
@@ -679,7 +865,8 @@ if __name__=='__main__':
     practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,0,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig)
 
     runbutton=launchbutton(experframe, run_trials, 'Start', [0,1,1,1], id=subjectIDvar, ntrials=ntrialsvar, audiofiles=audiofilevar, 
-        rootfig=mainfig, mrate=missratevar, grate=guessratevar, outdir=outputdirvar, slopeweight=slopeweightvar, plot=canvas, minsnr=minsnrvar, maxsnr=maxsnrvar)
+        rootfig=mainfig, mrate=missratevar, grate=guessratevar, outdir=outputdirvar, slopeweight=slopeweightvar, plot=canvas, minsnr=minsnrvar, maxsnr=maxsnrvar,
+        method=methodvar, methodfiles=methodmenu.methodfilesvar)
 
 
 

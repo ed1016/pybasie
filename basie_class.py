@@ -1,8 +1,3 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from basie_functions import v_quadpeak
-from basie_functions import v_psychofunc
-
 class basie_estimator():
 #     def __init__(self, nmodels, **kwargs):
 #         self.initialise(nmodels, **kwargs)
@@ -262,6 +257,7 @@ class basie_estimator():
 
         xqi = xq[:,iq-1].copy() # SRT values of the pdf array
         sqi = sq[:,iq-1].copy() # slope (or log slope) values in PDF
+        
         wqi = wq[:,iq-1].copy() # log pdf array
         mqi = mq[:,iq-1,0].copy() # [xe;se] means
         vqi = vq[:,iq-1].copy() # [xv; sxv; sv] covariance matrix
@@ -296,7 +292,7 @@ class basie_estimator():
         xq2 = np.linspace(xq2lim[0], xq2lim[1], int(nxq)).reshape(-1, 1) # new x axis values
         sq2 = np.linspace(sq2lim[0], sq2lim[1], int(nsq)).reshape(-1, 1) # new s axis values
         wqup = 2 # update flag
-
+        
         if xq2[0] < xqi[0] or xq2[-1] > xqi[-1] or sq2[0] < sqi[0] or sq2[-1] > sqi[-1]:
 #             if extrapolating, recalculate log-pdfs from saved data
             if LOG:
@@ -315,11 +311,11 @@ class basie_estimator():
 
         else:
             # Turn into a normalized, clipped matrix for easy interpolation
-            wq2 = np.maximum(np.reshape(wqi, (int(nsq), int(nxq))) - np.max(wqi), wfl)
+            wq2 = np.maximum(np.reshape(wqi, (int(nsq), int(nxq)),order='F') - np.max(wqi), wfl)
             # Use quadratic interpolation in SRT axis
             if ((xq2[-1] - xq2[0]) / (xqrange)) > nr[15]:
                 # If range has shrunk by < nr(16), leave the SRT axis unchanged
-                xq2 = xqi.copy()  # Copy the old SRT axis
+                xq2 = xqi.copy().reshape(-1,1)  # Copy the old SRT axis
                 wqup = 1  # Update flag
             else:
                 # Do quadratic interpolation
@@ -330,25 +326,22 @@ class basie_estimator():
                 xqf = xqj - xqf
                 xqg = 1 - xqf
                 xqh = 0.25 * xqf * xqg  # Quadratic coefficient
-
                 mask1 = (xqj <= 0) | (xqj > nxq)
                 mask2 = (xqj < 0) | (xqj >= nxq)
                 mask3 = (xqj < 1) | (xqj >= nxq - 1)
                 xqf[mask1] = 0
                 xqg[mask2] = 0
                 xqh[mask3] = 0
-
                 temp1 = wq2[:, tuple((np.minimum(np.maximum(xqj, 1), nxq) - 1).astype(int))] * (xqf + xqh)
                 temp2 = wq2[:, tuple((np.minimum(np.maximum(xqj + 1, 1), nxq) - 1).astype(int))] * (xqg + xqh)
                 temp3 = (wq2[:, tuple((np.minimum(np.maximum(xqj - 1, 1), nxq) - 1).astype(int))] + 
                          wq2[:, tuple((np.minimum(np.maximum(xqj + 2, 1), nxq) - 1).astype(int))]) * xqh
-
                 wq2 = temp1 + temp2 - temp3
-
+                print(np.shape(wq2))
             # Use quadratic interpolation in slope axis
             if ((sq2[-1] - sq2[0]) / (sqrange)) > nr[15]:
                 # If range has shrunk by < nr(16), leave the slope axis unchanged
-                sq2 = sqi.copy()  # Copy the old slope axis
+                sq2 = sqi.copy().reshape(-1,1)  # Copy the old slope axis
                 wqup -= 1  # Update flag
             else:
                 # Do quadratic interpolation
@@ -367,26 +360,21 @@ class basie_estimator():
                 sqf[mask1] = 0
                 sqg[mask2] = 0
                 sqh[mask3] = 0
-
-                temp1 = wq2[:, tuple((np.minimum(np.maximum(sqj, 1), nsq) - 1).astype(int))] * (sqf + sqh)
-                temp2 = wq2[:, tuple((np.minimum(np.maximum(sqj + 1, 1), nsq) - 1).astype(int))] * (sqg + sqh)
-                temp3 = (wq2[:, tuple((np.minimum(np.maximum(sqj - 1, 1), nsq) - 1).astype(int))] + 
-                         wq2[:, tuple((np.minimum(np.maximum(sqj + 2, 1), nsq) - 1).astype(int))]) * sqh
-                wq2 = temp1 + temp2 - temp3
+                temp1 = np.squeeze(wq2[tuple((np.minimum(np.maximum(sqj, 1), nsq) - 1).astype(int)),:]) * (sqf + sqh)
+                temp2 = np.squeeze(wq2[tuple((np.minimum(np.maximum(sqj + 1, 1), nsq) - 1).astype(int)),:]) * (sqg + sqh)
+                temp3 = (np.squeeze(wq2[tuple((np.minimum(np.maximum(sqj - 1, 1), nsq) - 1).astype(int)),:]) + 
+                         np.squeeze(wq2[tuple((np.minimum(np.maximum(sqj + 2, 1), nsq) - 1).astype(int)),:])) * sqh
+                wq2 = np.squeeze(temp1) + np.squeeze(temp2) - np.squeeze(temp3)
                 
-#                 sqf[(sqj <= 0) | (sqj > nsq)] = 0
-#                 sqg[(sqj < 0) | (sqj >= nsq)] = 0
-#                 sqh[(sqj < 1) | (sqj >= nsq-1)] = 0
-#                 wq2 = wq2[min(np.maximum(sqj, 1), nsq)-1, :]*np.tile(sqf+sqh, (nxq,1)).T+wq2[min(np.maximum(sqj+1, 1), nsq)-1, :] * np.tile(sqg+sqh, (nxq,1)).T -(wq2[min(np.maximum(sqj-1, 1), nsq)-1, :] + wq2[min(np.maximum(sqj+2, 1), nsq)-1, :]) * np.tile(sqh, (nxq,1)).T
-
         if wqup > 0:
+#             print(np.shape(wq2))
             wq2 = np.maximum(wq2 - np.max(wq2), wfl) # turn back into a normalized, clipped vector
             wq2 = wq2.ravel(order="F")
             sqi = np.atleast_2d(sq2.copy()) # update slope (or log slope) values in PDF
             xqi = xq2.copy() # update SRT values of the pdf array
             wqi = wq2.copy() # log pdf array
-            sq[:, iq-1] = sqi[:,0] # save new s axis (log slope or slope)
-            xq[:, iq-1] = xqi[:,0] # save new x axis (SRT)
+            sq[:, iq-1] = sqi[:,0].copy() # save new s axis (log slope or slope)
+            xq[:, iq-1] = xqi[:,0].copy() # save new x axis (SRT)
             wq[:, iq-1] = wqi.copy() # save log-pdf
         if nr[10]:
             sqis = np.exp(sqi) / qr[3, iq-1] # inverse std dev of gaussian (proportional to slope)
@@ -764,8 +752,8 @@ class basie_estimator():
             px = np.sum(wqsx, axis=0)                             # p(x0)
             ps = np.sum(wqsx, axis=1)                             # p(s0)
             pxpk, xm = np.max(px), np.argmax(px)
-            xqi = xq[:,modeln-1] # SRT values of the pdf array
-            sqi = sq[:,modeln-1] # slope (or log slope) values in PDF
+            xqi = xq[:,modeln-1].copy() # SRT values of the pdf array
+            sqi = sq[:,modeln-1].copy() # slope (or log slope) values in PDF
             pspk, sm = max((ps[i], i) for i in range(int(nsq)))
             axm=[[3, -2], [2, -1]]
 
