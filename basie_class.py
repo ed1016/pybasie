@@ -1,3 +1,31 @@
+from tkinter import *
+from tkinter import ttk
+from tkinter import filedialog
+from PIL import Image, ImageTk
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import MaxNLocator
+import pickle
+from scipy.optimize import minimize_scalar
+from scipy.stats import norm, logistic, norm
+from scipy.special import ndtri, expit, erf, erfinv, erfc, erfcinv
+from datetime import datetime as dt
+import math
+# import time
+import random
+import glob
+# import basie_functions
+
+
+import pandas as pd
+from pydub import AudioSegment
+from pydub.playback import play
+from tkinter import messagebox
+
+# from basie_class import *
+
 class basie_estimator():
 #     def __init__(self, nmodels, **kwargs):
 #         self.initialise(nmodels, **kwargs)

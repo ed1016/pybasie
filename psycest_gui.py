@@ -818,7 +818,7 @@ if __name__=='__main__':
     subjectIDvar=StringVar(paramframe, value='ID')
     subjectID=textentry(paramframe, 'Subject ID: ', subjectIDvar, [0,0,1,1])
 
-    methodvar=StringVar(paramframe, value='MRT [Hurr.]')
+    methodvar=StringVar(paramframe, value='')
     methodmenu=dropdownmenu(paramframe, 'Test type: ', methodvar, ['MRT [Hurr.]', 'other'], [1,0,1,1])
 
     # reffilesvar=StringVar(paramframe, value=['reference.txt', 'sentences.txt'])
