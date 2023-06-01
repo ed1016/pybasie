@@ -26,8 +26,8 @@ from pydub import AudioSegment
 from pydub.playback import play
 
 # own libraries
-from basie_functions import *
-from basie_class import *
+# from utils.basie_functions import *
+from utils.basie_class import *
 # from basie_functions import v_quadpeak
 
 
@@ -50,9 +50,9 @@ def extractfilelist(folderpath):
     availsnr = []
     reverblist = []
     for filename in foldfiles:
-        reverblist.append((filename[filename.find("reverb_")+len("reverb_"):filename.find("_snr_")]))
+        if filename.endswith(".wav"):
+            reverblist.append((filename[filename.find("reverb_")+len("reverb_"):filename.find("_snr_")]))
     reverblist=np.unique(reverblist)
-
     for i in range(len(reverblist)):
         tmpfiles = []
         tmpavailsnr = []
@@ -101,7 +101,6 @@ def run_practice(**kwargs):
     else:
 
         snrlist = list(set(availsnr))
-        print(snrlist)
         filenames=np.empty((nt, 1), dtype=object)
         for i in range(int(nt)):
             flg=0
@@ -744,8 +743,8 @@ class dropdownmenu():
         self.place_on_grid(pos)
 
         if self.var.get()=='MRT [Hurr.]':
-            idfilevar = StringVar(self.parent,value='recordings.txt')
-            sentencefilevar = StringVar(self.parent,value='sentences.txt')
+            idfilevar = StringVar(self.parent,value='data/mrt/recordings.txt')
+            sentencefilevar = StringVar(self.parent,value='data/mrt/sentences.txt')
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
             self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
@@ -806,12 +805,12 @@ if __name__=='__main__':
     imgframe.grid_columnconfigure(0, weight=1)
     imgframe.grid_rowconfigure(0, weight=1)
 
-    iclimg=Image.open("icllogo.png")
+    iclimg=Image.open("docs/icllogo.png")
     iclimg.thumbnail((168,150), Image.Resampling.LANCZOS)
     iclrender = ImageTk.PhotoImage(iclimg, master=imgframe)
     icllogo=Label(imgframe, image=iclrender).grid(row=0, column=0, sticky='w')
 
-    uclimg=Image.open("ucllogo.png")
+    uclimg=Image.open("docs/ucllogo.png")
     uclimg.thumbnail((150,150), Image.Resampling.LANCZOS)
     uclrender = ImageTk.PhotoImage(uclimg, master=imgframe)
     ucllogo=Label(imgframe, image=uclrender).grid(row=0, column=1, sticky='e')
@@ -826,10 +825,10 @@ if __name__=='__main__':
     paramframe.grid_columnconfigure(2, weight=1)
 
 
-    audiofilevar=StringVar(paramframe, value='/Users/emiliedolne/Library/CloudStorage/OneDrive-ImperialCollegeLondon/PhD/Year 3/Smartter hear/psychometrics/audio/mrt')
+    audiofilevar=StringVar(paramframe, value='data/mrt')
     audiobtn=browsebutton(paramframe, 'Audio files: ', audiofilevar, [0,1,1,1])
 
-    outputdirvar=StringVar(paramframe, value='results')
+    outputdirvar=StringVar(paramframe, value='data/results')
     outputdir=browsebutton(paramframe, 'Output directory: ', outputdirvar, [0,2,1,1])
 
     subjectIDvar=StringVar(paramframe, value='ID')

@@ -2,3 +2,4 @@
 ## Code and usage
 
 ## General User Interface (GUI)
+[](docs/gui.png)
