@@ -1,0 +1,1 @@
+time: 20230601_180514 	 subjectID: ID 	 audio folder: /Users/emiliedolne/Library/CloudStorage/OneDrive-ImperialCollegeLondon/PhD/Year 3/Smartter hear/psychometrics/audio/mrt 	 model parameters: [  0.5    0.04   0.1  -20.    20.     0.     0.5 ] 	 reverb list: ['Office_1'] 	 ntrials: 4

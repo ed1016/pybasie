@@ -1,11 +1,17 @@
+
+# gui libraries
 from tkinter import *
 from tkinter import ttk
 from tkinter import filedialog
 from PIL import Image, ImageTk
+from tkinter import messagebox
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+
+# standard libraries
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.ticker import MaxNLocator
 import pickle
 from scipy.optimize import minimize_scalar
@@ -13,19 +19,16 @@ from scipy.stats import norm, logistic, norm
 from scipy.special import ndtri, expit, erf, erfinv, erfc, erfcinv
 from datetime import datetime as dt
 import math
-# import time
 import random
 import glob
-# import basie_functions
-
-
 import pandas as pd
 from pydub import AudioSegment
 from pydub.playback import play
-from tkinter import messagebox
 
+# own libraries
+from basie_functions import *
 from basie_class import *
-
+# from basie_functions import v_quadpeak
 
 
 def defaultfct(**kwargs):
@@ -87,6 +90,8 @@ def run_practice(**kwargs):
     nt = int(kwargs.get('ntrials'))
     audiofiles = kwargs.get('audiofiles').get()
     root = kwargs.get('rootfig')
+    method = kwargs.get('method').get()
+    methodfiles=kwargs.get('methodfiles').get().split(',')
 
     filelist, availsnr = extractfilelist_practice(audiofiles)
     if not filelist :
@@ -96,6 +101,7 @@ def run_practice(**kwargs):
     else:
 
         snrlist = list(set(availsnr))
+        print(snrlist)
         filenames=np.empty((nt, 1), dtype=object)
         for i in range(int(nt)):
             flg=0
@@ -104,8 +110,10 @@ def run_practice(**kwargs):
                 snridx = np.where(np.in1d(availsnr, snr))[0];
                 currentfile=random.choice([filelist[j] for j in snridx])
                 filenames[i,:] = currentfile
-                trialtitle = 'Trial ' + str(i+1) +'/' + str(nt)
-                response = responsewindow(root, os.path.join(audiofiles,currentfile), trialtitle).show()
+                trialtitle = 'Practice ' + str(i+1) +'/' + str(nt)
+                if method=='MRT [Hurr.]':
+                    response, wordchoice = responsewindow_hurricane(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle).show()
+                # response = responsewindow(root, os.path.join(audiofiles,currentfile), trialtitle).show()
                 if response:
                     flg=1
 
@@ -156,6 +164,7 @@ def run_trials(**kwargs):
         if IDmatches:
             IDmatches.insert(0, 'New')
             selectedID = listselect(root, IDmatches).show()
+            
             if selectedID=='New':
                 srt_estimator=basie_estimator()
                 [snr, evalmodel,_,_] = srt_estimator.initialise(nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
@@ -167,7 +176,7 @@ def run_trials(**kwargs):
                 elif os.path.isfile(os.path.join(selectedID,'paused.pkl')):
                     pklfile=os.path.join(selectedID,'paused.pkl')
                 else:
-                    print('no .plk file')
+                    print('no .pkl file')
 
                 with open(pklfile, 'rb') as f:
                     [srt_estimator, evalmodel, snr, filenames, choices]=pickle.load(f)
@@ -316,7 +325,7 @@ class responsewindow_hurricane(Toplevel):
         # start panel should have a rolldown menu giving the type of feedback needed
         Toplevel.__init__(self, root)
         self.title(titlestr)
-        self.geometry("+%d+%d" %(root.winfo_x()+500, root.winfo_y()+300))
+        self.geometry("+%d+%d" %(root.winfo_x()+400, root.winfo_y()+300))
 
         self.responseVar = StringVar(value='')
 
@@ -329,12 +338,12 @@ class responsewindow_hurricane(Toplevel):
         self.audioVar=StringVar()
         self.audiobtn = launchbutton(self, play_audio, 'Play', [0,0,1,1], audiofile=audiofile, audioVar=self.audioVar)
 
-        # with open(recordtxt, 'r') as file:
-        #     self.nwords = file.readline().split()[-1]
-
         shortaudio=audiofile.split("/")[-1]
-        fileID="_".join(shortaudio.split("_", 2)[:2])
-
+        if "practice" not in shortaudio:
+            fileID="_".join(shortaudio.split("_", 2)[:2])
+        else:
+            fileID="_".join(shortaudio.split("_", 3)[1:3])
+        print(fileID)
         fileID.replace('\n', '')
         with open(reftxt) as file:
             for num, line in enumerate(file, 1):
@@ -456,8 +465,8 @@ class responsebutton_wordselect:
 
         self.buttons=[]
         for i in range(len(sentences)):
-            self.buttons.append(Radiobutton(self.parent, text=sentences[i].replace('\n', ''), variable=vaript, value=sentences[i].replace('\n', ''), justify='left'))
-        self.inaudible=Radiobutton(self.parent, text="Don't know", variable=vaript, value="Don't know")
+            self.buttons.append(Radiobutton(self.parent, text=sentences[i].replace('\n', ''), variable=vaript, value=sentences[i].replace('\n', ''), justify='left', font=('Arial', 20)))
+        self.inaudible=Radiobutton(self.parent, text="Don't know", variable=vaript, value="Don't know", font=('Arial, 20'))
         self.place_on_grid(pos) # place things on the grid
 
     def place_on_grid(self, newpos):
@@ -467,7 +476,7 @@ class responsebutton_wordselect:
         self.parent.grid_columnconfigure(0,weight=1)
 
         for i in range(len(self.buttons)):
-            self.buttons[i].grid(row=0, column=i, sticky='ws')
+            self.buttons[i].grid(row=0, column=i, sticky='ws', padx=30)
         
         self.inaudible.grid(row=0, column=i+1, sticky='s')
     def update_val(self, newval):
@@ -553,7 +562,7 @@ class launchbutton:
         self.parent = Frame(root) # frame to hold the box and labels
         self.launchfct = launchfct
 
-        self.box = Button(self.parent, text=lbl, command=lambda: self.start_function(launchfct,**kargs), width=7)
+        self.box = Button(self.parent, text=lbl, command=lambda: self.start_function(launchfct,**kargs), width=7, font=(17))
 
         self.place_on_grid(pos) # place things on the grid
 
@@ -725,6 +734,7 @@ class dropdownmenu():
         else :
             self.var = vaript # value of the entry
         
+
         self.methodfiles=[]
         self.methodfilesvar=StringVar(self.parent)
         self.title = Label(self.parent, text=lbl, anchor='n', font=('Arial', 12, 'bold')) # title
@@ -732,6 +742,13 @@ class dropdownmenu():
         self.varlbl = Label(self.parent, textvariable=StringVar(value=' '), font=('Arial', 12))
         self.menu.config(width=8, height=1)
         self.place_on_grid(pos)
+
+        if self.var.get()=='MRT [Hurr.]':
+            idfilevar = StringVar(self.parent,value='recordings.txt')
+            sentencefilevar = StringVar(self.parent,value='sentences.txt')
+            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
+            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
+            self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
 
     def place_on_grid(self, newpos):
         self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
@@ -818,8 +835,9 @@ if __name__=='__main__':
     subjectIDvar=StringVar(paramframe, value='ID')
     subjectID=textentry(paramframe, 'Subject ID: ', subjectIDvar, [0,0,1,1])
 
-    methodvar=StringVar(paramframe, value='')
+    methodvar=StringVar(paramframe, value='MRT [Hurr.]')
     methodmenu=dropdownmenu(paramframe, 'Test type: ', methodvar, ['MRT [Hurr.]', 'other'], [1,0,1,1])
+    # methodvar.set('MRT [Hurr.]')
 
     # reffilesvar=StringVar(paramframe, value=['reference.txt', 'sentences.txt'])
     # reffiles=browsebuttonfiles(paramframe, 'Reference files: ', reffilesvar, [1,1,1,1])
@@ -848,7 +866,7 @@ if __name__=='__main__':
     missratevar=StringVar(advancedparamframe, value=0.04)
     missrate=textentry(advancedparamframe, 'Miss rate: ', missratevar, [1,1,1,1], [0, 1])
 
-    ntrialspractice=5
+    ntrialspractice=4
     # --------- Control area ---------
     plotframe.grid_rowconfigure(0, weight=1)
     plotframe.grid_rowconfigure(1, weight=1)
@@ -862,7 +880,8 @@ if __name__=='__main__':
     experframe.grid_columnconfigure(0, weight=1)
     experframe.grid_columnconfigure(1, weight=1)
 
-    practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,0,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig)
+    practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,0,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig, method=methodvar, 
+        methodfiles=methodmenu.methodfilesvar)
 
     runbutton=launchbutton(experframe, run_trials, 'Start', [0,1,1,1], id=subjectIDvar, ntrials=ntrialsvar, audiofiles=audiofilevar, 
         rootfig=mainfig, mrate=missratevar, grate=guessratevar, outdir=outputdirvar, slopeweight=slopeweightvar, plot=canvas, minsnr=minsnrvar, maxsnr=maxsnrvar,

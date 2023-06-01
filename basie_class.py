@@ -1,31 +1,16 @@
-from tkinter import *
-from tkinter import ttk
-from tkinter import filedialog
-from PIL import Image, ImageTk
-import os
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.ticker import MaxNLocator
-import pickle
+import math
 from scipy.optimize import minimize_scalar
 from scipy.stats import norm, logistic, norm
 from scipy.special import ndtri, expit, erf, erfinv, erfc, erfcinv
-from datetime import datetime as dt
-import math
-# import time
-import random
-import glob
-# import basie_functions
 
-
-import pandas as pd
-from pydub import AudioSegment
-from pydub.playback import play
-from tkinter import messagebox
+from basie_functions import *
 
 # from basie_class import *
-
 class basie_estimator():
 #     def __init__(self, nmodels, **kwargs):
 #         self.initialise(nmodels, **kwargs)
@@ -39,7 +24,6 @@ class basie_estimator():
             robust = kwargs.get('robust')
         else:
             robust = False
-        
         # now select the appropriate model to probe next
         hnmax, ii = np.max(hn), np.argmax(hn)         # choose model with the biggest expected decrease
         xx = xn[ii]
@@ -52,6 +36,10 @@ class basie_estimator():
         if robust==True:
             mqr=self.mqr
             vqr=self.vqr
+            if nr[10]:
+                mqr[1,:,:] = np.exp(mqr[1, :, :])  # convert to real slope
+                vqr[1,:] = vqr[1,:] * mqr[1, :, 0]  # correct the covariance
+                vqr[2,:] = vqr[2,:] * mqr[1, :, 0]**2
             return xx, ii+1, m, v, mqr, vqr
         else:
             return xx, ii+1, m, v
@@ -131,14 +119,13 @@ class basie_estimator():
         xq = np.linspace(pr[3], pr[4], int(nxq))
 
         if nr[10]:  # if log slope
-            sqmin = np.log(nr[5])  # low limit for axis
+            sqmin = np.log(nr[5].copy())  # low limit for axis
 #             sq = np.array((np.arange(1-nsq, 1,1)*(np.log(pr[6, :]) - np.log(np.maximum(pr[5, :], nr[5])))/(nsq-1)) + np.log(pr[6, :]),ndmin=2).T
             sq = np.outer((np.arange(1-nsq, 1,1)),(np.log(pr[6, :]) 
                                                    - np.log(np.maximum(pr[5, :], nr[5]))))/(nsq-1) + np.tile(np.log(pr[6, :]),(int(nsq),1))
         else:
             sqmin = nr[5].copy()  # low limit for axis
             sq = np.array((np.arange(1-nsq, 1,1)*(pr[6, :] - np.maximum(pr[5, :], nr[5]))/(nsq-1)) + pr[6, :],ndmin=2).T
-            
         mq0 = np.vstack((np.mean(xq, axis=0), np.mean(sq, axis=0)))  # find mean of prior
         pq0 = -2 * nr[11]**2 * np.power(np.vstack((xq[-1, :] - xq[0, :], sq[-1, :] - sq[0, :])), -2)  # scale factor for prior distribution
         wq = (np.tile((pq0[1, 0] * np.power((sq[:, 0] - mq0[1, 0]), 2)), (int(nxq),1)) + np.tile(pq0[0, 0] * np.power((xq[:, 0] - mq0[0, 0]), 2),(int(nsq),1)).T) # log probs of prior (same for all models)
@@ -219,7 +206,7 @@ class basie_estimator():
         self.xlim=xlim
         
         return self.get_next_model()
-        
+    
     def update(self, iq, **kwargs):
         wq=self.wq
         xq=self.xq
@@ -301,12 +288,11 @@ class basie_estimator():
             xq2lim = [xqi[0], xqi[-1]]
             sq2lim = [sqi[0], sqi[-1]]
         else:
-            # CHECK HERE
             xqsemirange = max(nr[6] * xsd, 0.5 * nr[19] * xqrange)
             xq2lim = [mqi[0] - xqsemirange, mqi[0] + xqsemirange]
             sqsemirange = max(nr[6] * ssd, 0.5 * nr[19] * sqrange)
             sq2lim = [max(sqmin, mqi[1] - sqsemirange), mqi[1] + sqsemirange]
-
+    
             if abs(xq2lim[0] - xqi[0]) < nr[16] * xqrange:
                 xq2lim[0] = xqi[0]
             if abs(xq2lim[1] - xqi[-1]) < nr[16] * xqrange:
@@ -320,7 +306,6 @@ class basie_estimator():
         xq2 = np.linspace(xq2lim[0], xq2lim[1], int(nxq)).reshape(-1, 1) # new x axis values
         sq2 = np.linspace(sq2lim[0], sq2lim[1], int(nsq)).reshape(-1, 1) # new s axis values
         wqup = 2 # update flag
-        
         if xq2[0] < xqi[0] or xq2[-1] > xqi[-1] or sq2[0] < sqi[0] or sq2[-1] > sqi[-1]:
 #             if extrapolating, recalculate log-pdfs from saved data
             if LOG:
@@ -365,7 +350,6 @@ class basie_estimator():
                 temp3 = (wq2[:, tuple((np.minimum(np.maximum(xqj - 1, 1), nxq) - 1).astype(int))] + 
                          wq2[:, tuple((np.minimum(np.maximum(xqj + 2, 1), nxq) - 1).astype(int))]) * xqh
                 wq2 = temp1 + temp2 - temp3
-                print(np.shape(wq2))
             # Use quadratic interpolation in slope axis
             if ((sq2[-1] - sq2[0]) / (sqrange)) > nr[15]:
                 # If range has shrunk by < nr(16), leave the slope axis unchanged
@@ -393,9 +377,8 @@ class basie_estimator():
                 temp3 = (np.squeeze(wq2[tuple((np.minimum(np.maximum(sqj - 1, 1), nsq) - 1).astype(int)),:]) + 
                          np.squeeze(wq2[tuple((np.minimum(np.maximum(sqj + 2, 1), nsq) - 1).astype(int)),:])) * sqh
                 wq2 = np.squeeze(temp1) + np.squeeze(temp2) - np.squeeze(temp3)
-                
+
         if wqup > 0:
-#             print(np.shape(wq2))
             wq2 = np.maximum(wq2 - np.max(wq2), wfl) # turn back into a normalized, clipped vector
             wq2 = wq2.ravel(order="F")
             sqi = np.atleast_2d(sq2.copy()) # update slope (or log slope) values in PDF
@@ -429,7 +412,8 @@ class basie_estimator():
             elif nr[9] == 2:
                 sqis = sqis.ravel()
                 xqi = xqi.ravel()
-                wqi = wqi + np.log(r0 + (1 - 2 * r0) * (guess + pscale * norm.cdf(np.outer(sqis, x) - np.reshape(sqis * xqi - xtstd, (nsxq, 1)))))  # P(l | r,x)
+                wqi = wqi + np.log(r0 + (1 - 2 * r0) *
+                                   (guess + pscale * norm.cdf(((np.tile((x*sqis),(int(nxq),1)).T)-np.outer(sqis, xqi)+ xtstd)).ravel(order="F")))
             else:
                 raise ValueError('Unrecognised psychometric model selection')
             wq[:, iq-1] = wqi  # save updated probabilities
@@ -444,7 +428,7 @@ class basie_estimator():
         ps = np.sum(wqsx, axis=1)                             # p(s0)
         xe = np.dot(px, xqi)                                  # E(x0)
         se = np.dot(ps, sqi)                                  # E(s0)
-
+        
         pxpk, xm = np.max(px), np.argmax(px)
         if xm > 0 and xm < nxq-1:                           # use quadratic interpolation in log prob if possible
             log_px = np.log(px[xm-1:xm+2])
@@ -471,9 +455,9 @@ class basie_estimator():
             ji = ji[1]
             i = i + ji[1] - 1
             j = j + ji[0] - 1
+            
         xj = (2 - i) * xqi[0] + (i - 1) * xqi[1]  # joint mode  x
         sj = (2 - j) * sqi[0] + (j - 1) * sqi[1]  # joint mode: s
-
         xv = np.dot(px, (xqi ** 2)) - xe ** 2  # Var(x0)
         sv = np.dot(ps.T, sqi ** 2) - se ** 2  # Var(s0)
         xqi = xqi.ravel()
@@ -487,7 +471,6 @@ class basie_estimator():
         vq[:, iq-1] = np.array([xv, sxv.item(), sv])  # save covariance matrix
         xh = np.dot(px, np.log(px).T) * (xqi[0] - xqi[1])  # differential v_entropy h(x0)
         sh = np.dot(ps.T, np.log(ps)) * (sqi[0] - sqi[1])  # differential v_entropy h(s0)
-
         # if not plotting
         if po == '':
             if nr[8] == 1:  # cost function: 1=variance, 2=v_entropy
@@ -506,7 +489,6 @@ class basie_estimator():
                 mr=mqr.copy()
                 vr=vqr.copy()
             else:
-#                 print(res) 
                 for jq in range(nresq.size):
                     if any(res[nresr:nres+1,0]==jq):
                         guessj=pr[2,jq]
@@ -518,6 +500,7 @@ class basie_estimator():
                         xej=mq[0,jq,0]
                         sej=mq[1,jq,0]
                         resj=res[res[:,0]==jq,:]
+                        
                         if nr[10]==1:
                             sqisj=np.exp(sej)/qr[3,jq]
                         else:
@@ -526,48 +509,51 @@ class basie_estimator():
                         if nr[9]==1:
                             xlim[1,jq]=xej-(xtstdj+np.log(nr[18]/(pscalej-nr[18])))/sqisj
                         elif nr[9]==2:
-                            xlim[1,jq]=xej-(-erfcinv(2*((pscalej-nr[18])/pscalej))*np.sqrt(2)-xtstdj)/sqisj
+                            xlim[1,jq]=xej+((-np.sqrt(2)*erfcinv(2*((pscalej-nr[18])/pscalej))-xtstdj)/sqisj)
                             
                         mou=np.logical_and(resj[:,1]>=xlim[1,jq] ,resj[:,2]==0)
                         if nr[19]>guessj:
                             if nr[9]==1:
                                 xlim[0,jq]=xej-(xtstdj+np.log(pscalej/(nr[18]-guessj)-1))/sqisj
                             elif nr[9]==2:
-                                xlim[0,jq]=xej+(-erfcinv(2*((pscale-nr[18])/pscalej))*np.sqrt(2)-xtstdj)/sqisj
+                                xlim[0,jq]=xej+(-erfcinv(2*((nr[18]-guessj)/pscalej))*np.sqrt(2)-xtstdj)/sqisj
                             mou=np.logical_or(mou, np.logical_and(resj[:,1]<=xlim[0,jq], resj[:,2]==1))
+                            
                         if any(mou):
                             if nr[10]==1:
                                 sqisj=np.exp(sqj)/qr[3,jq]
                             else:
                                 sqisj=sqj/qr[3,jq]
-                                
                             
-                            wqj=np.tile(pqo[1,jq]*(sqj-mq0[1,jq])**2,(int(nxq),1))+np.tile(pqo[0,jq]*(xqj-mq0[0,jq])**2,(int(nsq),1))
-
+                            wqj=np.tile(pq0[1,jq]*(sqj-mq0[1,jq])**2,(int(nxq),1)).T+np.tile(pq0[0,jq]*(xqj-mq0[0,jq])**2,(int(nsq),1))
                             if nr[9]==1:
                                 sqisj = sqisj.ravel()
                                 xqj=xqj.ravel()
-                                for j in np.where(mou==0):
+                                np.where(mou==0)
+                                for j in np.where(mou==0)[0]:
                                     r0=(resj[j,2]==0)
                                     wqj=wqj+np.log(r0+(1-2*r0)*
                                                    (guessj+pscalej*
-                                                    (((1+np.exp((np.outer(sqisj,xqj)-xtstdj)-np.tile(resj[j,1]*sqisj,(int(nxq),1)).T)).ravel(order='F'))**(-1))))
+                                                    (((1+np.exp((np.outer(sqisj,xqj)-xtstdj)-np.tile(resj[j,1]*sqisj,(int(nxq),1)).T)))**(-1))))
                             elif nr[9]==2:
-                                for j in np.where(mou==0):
+                                sqisj = sqisj.ravel()
+                                xqj=xqj.ravel()
+                                for j in np.where(mou==0)[0]:
                                     r0=(resj[j,2]==0)
-                                    wqj=wqj+np.log(r0+(1-2*r0)*(guessj+pscalej*norm.cdf(np.tile(sqisj,(int(nxq),1))
-                                                                                       *resj[j,1]-
-                                                                                       sqisj*xqj.T+xtstdj)))
-                            wqj=wqj[:].copy()
+                                    wqj=wqj+np.log(r0+(1-2*r0)*
+                                                   (guessj+pscalej* norm.cdf(((np.tile((resj[j,1]*sqisj),(int(nxq),1).T)-np.outer(sqisj,xqj)+xtstdj)))))
+#                                     norm.cdf(((np.tile((x*sqis),(int(nxq),1)).T)-np.outer(sqis, xqi)+ xtstd)).ravel(order="F"))
+                                    
+                            wqj=np.atleast_2d(wqj[:].copy().ravel(order="F"))
                             ewqj=np.exp(wqj-np.max(wqj))
                             ewqj=ewqj/np.sum(ewqj)
                             wqsxr=np.reshape(ewqj, (int(nsq),int(nxq)), order="F")
                             pxr=np.sum(wqsxr, axis=0)
                             psr=np.sum(wqsxr, axis=1)
-                            xer=pxr*xqj
-                            ser=psr.T*sqj
+                            xer=np.dot(pxr,xqj)
+                            ser=np.dot(psr,sqj)
                             [pxpk,xmr]=np.max(pxr), np.argmax(pxr)
-                            if xmr>0 and xnr<nxq-1:
+                            if xmr>0 and xmr<nxq-1:
                                 log_px = np.log(px[xmr-1:xmr+2])
                                 xm2 = v_quadpeak(log_px)
                                 xm2 = xm2[1]
@@ -595,22 +581,54 @@ class basie_estimator():
                             sjr = (2 - j) * sqj[0] + (j - 1) * sqj[1]  # joint mode: s
 
                             xvr = np.dot(pxr, (xqj ** 2)) - xer ** 2  # Var(x0)
-                            sv = np.dot(psr.T, sqj ** 2) - ser ** 2  # Var(s0)
+                            svr = np.dot(psr.T, sqj ** 2) - ser ** 2  # Var(s0)
                             xqj = xqj.ravel()
                             sqj = sqj.ravel()
+                            
                             sxvr = np.dot(ewqj, (np.tile(sqj - ser, int(nxq)) *
                                                   np.tile(xqj.T - xer, (int(nsq),1)).ravel(order="F")))  # Cov(s0*x0)
                             mqr[:, jq, 0] = np.array([xer, ser])  # save means
-                            mqr[:, jq, 1] = np.array([xjr.item(), sjr.ritem()])  # save joint mode
+                            mqr[:, jq, 1] = np.array([xjr.item(), sjr.item()])  # save joint mode
                             mqr[:, jq, 2] = np.array([xmr.item(), smr.item()])  # save marginal modes
 
                             vqr[:, jq] = np.array([xvr, sxvr.item(), svr])  # save covariance matrix
                         else:
                             mqr[:,jq,:]=mq[:,jq,:].copy()
                             vqr[:,jq]=vq[:,jq].copy()
-                            
-        if len(xz[iq-1])==0:
-            print('Have not implement free SNR estimation yet, matlab lines 678-709')
+#                 nresr=nres.copy()
+#                 mr=mqr.copy()
+#                 vr=vqr.copy()
+                    
+
+        if xz[iq-1] is None:
+            ytry = np.exp(0.25j * np.pi * np.arange(8)).reshape(-1, 1)  # points around the circle
+            ytry = np.concatenate((np.real(ytry), np.imag(ytry)), axis=1)
+
+            cov_matrix = np.array([[xv, sxv.item()], [sxv.item(), sv]])
+            dtry, vtry = np.linalg.eig(cov_matrix)  # eigendecomposition of covariance matrix
+
+            tryxs = np.tile([xe, se], (8, 1)) + nr[13] * ytry * np.sqrt(dtry) @ vtry.T
+
+            pmin = 0.05  # target probe success probability
+
+            if nr[10]:
+                tryxs[:, 1] = qr[3, iq-1] * np.exp(-tryxs[:, 1])  # convert log(slope) to std dev
+            else:
+                tryxs[:, 1] = qr[3, iq-1] * np.power(tryxs[:, 1], -1)  # convert slope to std dev
+
+            dp = nr[14]  # maximum shift of probe value outside previous range
+
+            if nr[9] == 1:  # switch by model type
+                qmax = min(xmm[1, iq-1] + dp, np.max(tryxs[:, 0] + (np.log((1 - pmin) / pmin) - xtstd) * tryxs[:, 1]))
+                qmin = max(xmm[0, iq-1] - dp, np.min(tryxs[:, 0] + (np.log(pmin / (1 - pmin)) - xtstd) * tryxs[:, 1]))
+            elif nr[9] == 2:
+                qmax = min(xmm[1, iq-1] + dp, np.max(tryxs[:, 0] + (norm.ppf(1 - pmin) - xtstd) * tryxs[:, 1]))
+                qmin = max(xmm[0, iq-1] - dp, np.min(tryxs[:, 0] + (norm.ppf(pmin) - xtstd) * tryxs[:, 1]))
+
+            dxt = max(nr[4], (qmax - qmin) / nxh)  # minimum step size of nr[4] [0.2 dB]
+            xt = (qmin + qmax) / 2 + ((np.arange(nxh) + 1) - (1 + nxh) / 2) * dxt
+            
+#             print('Free SNR estimation, matlab lines 678-709')
         else:
             xzi = xz[iq-1]  # xzi is the list of available probe SNRs
             if len(xzi) <= nxh:  # use all available probe SNRs if there are not too many
@@ -619,7 +637,7 @@ class basie_estimator():
                 ixt = np.argmin(np.abs(xzi - xe))  # find the closest one to xe ** not necessarily optimum ***
                 ixt = max(0, min(len(xzi) - nxh, ixt - int((1 + nxh) / 2)))  # arrange symmetrically around xt
                 xt = xzi[int(ixt):int(min(ixt + nxh, len(xzi)))]
-
+                
         nxhp = len(xt)  # xt are the potential probe SNRs
         # Now find the probe value that minimizes the expected value of the cost function
         # In the following: l = parameters of psychometric function, x = the probe SNR and r = the probe result
@@ -627,13 +645,13 @@ class basie_estimator():
             prt = guess + pscale*((1 + np.exp(np.tile((np.outer(sqis, xqi) - xtstd).ravel(order="F"),(int(nxhp),1))-
                                               np.outer(np.tile(sqis,int(nxq)),(xt)).T))**(-1)).T  # P(r=1 | l,x)
         elif nr[9] == 2:
-            prt = guess + pscale*norm.cdf(np.tile(sqis, (nxq, 1)) @ xt - np.tile(np.reshape(sqis @ xqi - xtstd, (nsxq, 1)), (1, nxhp)))  # P(r=1 | l,x)
+            prt = guess + pscale*norm.cdf(np.outer(np.tile(sqis,int(nxq)),(xt)).T-np.tile((np.outer(sqis, xqi) - xtstd).ravel(order="F"),(int(nxhp),1))).T# P(r=1 | l,x)
 
         wqt = np.tile(ewqi, (int(nxhp),1)).T
         hminr = np.zeros((2, 1))  # space for minimum expected cost function for each r0
         hminj = np.zeros((nxhp, 1))  # space for minimum expected cost function for each x0
 
-        if nr[17]:  # if doing look 2-ahead
+        if nr[17]==1:  # if doing look 2-ahead
             pl1 = prt * wqt  # posterior prob given success = p(l | x0,r0=1) unnormalized
             pl0 = wqt - pl1  # posterior prob given failure = p(l | x0,r0=0) unnormalized
             pr0 = np.sum(pl1, axis=0)  # p(r0=1 | x0)=Sum{P(r0=1 | l,x0)*P(l)} [note each column of wqt is normalized] (row vector)
@@ -645,15 +663,15 @@ class basie_estimator():
             nr0 = 2  # inner loop for each r0
 
         else:  # if only doing look 1-ahead
-            nx0 = 0  # only execute outer loop once
-            nr0 = 0  # only execute inner loop once
-            pr0 = -1  # dummy value (used at end of outer loop)
+            nx0 = 1  # only execute outer loop once
+            nr0 = 1  # only execute inner loop once
+            pr0 = np.array([-1])  # dummy value (used at end of outer loop)
 
         hx2 = np.zeros((nx0, nxhp, nr0)) # space for square array of expected cost functions (for possible plotting only)
 
         for j in range(nx0): # loop for each possible probe SNR, x0, (or only once is look-1-ahead)
             for jr in range(nr0): # loop for each possible test result, r0=jr-1 (or only once is look-1-ahead)
-                if nr[17]: # if doing look 2-ahead
+                if nr[17]==1: # if doing look 2-ahead
                     wqt = np.tile(plxr[:, j, jr], (nxhp,1)).T # posterior prob p(l | x0=xt(j),r0=jr-1) column-normalized
 
                 pl1 = prt * wqt # posterior prob given success = p(l | x,r=1) unnormalized
@@ -697,6 +715,7 @@ class basie_estimator():
             hminj[j] = (1 - pr0[j]) * hminr[0] + pr0[j] * hminr[1]
         if nr[17]==1:
             hminr[0], ix = np.min(hminj), np.argmin(hminj)
+        
         xn[iq-1] = xt[ix]
         if nr[8]==1:
             hn[iq-1] = (xv + nr[3]*sv)/((1+nr[3]))-hminr[0]
