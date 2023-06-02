@@ -1,1 +1,0 @@
-time: 20230601_185810 	 subjectID: ID 	 audio folder: data/mrt 	 model parameters: [  0.5    0.04   0.1  -20.    20.     0.     0.5 ] 	 reverb list: ['Office_1'] 	 ntrials: 4
