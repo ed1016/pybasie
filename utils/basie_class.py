@@ -8,6 +8,8 @@ from scipy.optimize import minimize_scalar
 from scipy.stats import norm, logistic, norm
 from scipy.special import ndtri, expit, erf, erfinv, erfc, erfcinv
 
+import warnings
+
 # from utils.basie_functions import *
 
 def v_psychofunc(m=None, q=None, x=None, r=None):
