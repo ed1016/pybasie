@@ -6,3 +6,5 @@
 
 ## The Modified rhyme test (MRT)
 [Original paper describing the sentences](https://pubs.aip.org/asa/jasa/article/35/11_Supplement/1899/617588), recorded by British-English speaker [here](https://datashare.ed.ac.uk/handle/10283/347).
+
+![Pop-up window](docs/popup.png)
