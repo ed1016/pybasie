@@ -112,9 +112,10 @@ def run_practice(**kwargs):
                 currentfile=random.choice([filelist[j] for j in snridx])
                 filenames[i,:] = currentfile
                 trialtitle = 'Practice ' + str(i+1) +'/' + str(nt)
-                if method=='MRT [Hurr.]':
-                    response, wordchoice = responsewindow_hurricane(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle).show()
+                if 'MRT' in method:
+                    response, wordchoice = responsewindow_MRT(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle, method).show()
                 # response = responsewindow(root, os.path.join(audiofiles,currentfile), trialtitle).show()
+                print(response)
                 if response:
                     flg=1
 
@@ -245,7 +246,7 @@ def run_trials(**kwargs):
 
             # -- get response from response window --
             snridx = np.where(np.in1d(availsnr[evalmodel-1], snr))[0];
-            try: # try unique options
+            try: # try unique file options
                 templist=[]
                 for j in snridx:
                     if filelist[evalmodel-1][j] not in filenames:
@@ -254,14 +255,12 @@ def run_trials(**kwargs):
             except: # if you have tried everything already
                 currentfile=random.choice([filelist[evalmodel-1][j] for j in snridx])
 
-
             filenames.append(currentfile)
             trialtitle = 'Trial ' + str(i+1) +'/' + str(nt)
             plotarea.filevar.set("Playing: "+currentfile)
             while flg==0:
-                if method=='MRT [Hurr.]':
-                    response, wordchoice = responsewindow_hurricane(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle).show()
-
+                if 'MRT' in method:
+                    response, wordchoice = responsewindow_MRT(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle, method).show()
                 if plotarea.pausevar.get()=='paused':
                     flg=2
                 elif response:
@@ -289,20 +288,23 @@ def run_trials(**kwargs):
             linessrt[preevalmodel-1].set_ydata([m[0,preevalmodel-1, 0], m[0,preevalmodel-1, 0]])
             plotarea.canvas.draw()
 
-            if all(v[0,:]<1):
-                varcount+=varcount
-                if varcount>4:
-                    print('var is low enough')
-                    break
-            else:
-                varcount=0
+            # ----- uncomment for automatic stop with variance -----
+
+            # if all(v[0,:]<1):
+            #     varcount+=varcount
+            #     if varcount>4:
+            #         print('var is low enough')
+            #         break
+            # else:
+            #     varcount=0
+
         [p, q, msr] = srt_estimator.summary()
 
-        ####### save a config file with details of experiment #######
+        # ------ save a config file with details of experiment ------
         with open(os.path.join(outdir, ID, timestamp, 'config.txt'), 'w') as file:
             file.write(f'time: {timestamp} \t subjectID: {ID} \t audio folder: {audiofiles} \t model parameters: {modelp.flatten()} \t reverb list: {reverblist} \t ntrials: {nt}')
 
-        ####### save results in a csv file #######
+        # ------ save results in a csv file ------
         nlines = len(msr[:,0])
         print(nlines)
         print(msr)
@@ -319,8 +321,8 @@ def run_trials(**kwargs):
         plotarea.hidepause()
         plotarea.pausevar.set('active')
 
-class responsewindow_hurricane(Toplevel):
-    def __init__(self, root, audiofile, reftxt, senttxt,  titlestr):
+class responsewindow_MRT(Toplevel):
+    def __init__(self, root, audiofile, reftxt, senttxt,  titlestr, method):
         # need to add response buttons based on info for list in .txt files
         # the audiofile should define the true/false value of buttons
         # start panel should have a rolldown menu giving the type of feedback needed
@@ -357,15 +359,16 @@ class responsewindow_hurricane(Toplevel):
 
         with open(senttxt) as file:
             self.sentences=file.readlines()[self.listnbr].split('\t')[1:]
-
-        self.correctsentence=self.sentences[idxinlist]
-        print(fileID, self.correctsentence)
-        self.responsebtns = responsebutton_wordselect(self, self.responseVar, self.sentences, [1,0,1,1])
+        self.correctsentence=self.sentences[idxinlist].replace('\n', '')
+        if 'Click' in method:
+            self.responsebtns = responsebutton_wordselect(self, self.responseVar, self.sentences, [1,0,1,1])
+        elif 'Type' in method:
+            self.responsebtns = responsebutton_typein(self, self.responseVar, self.correctsentence, [1,0,1,1])
 
         # self.confirmframe = confirmbutton(self.parent, confirmVar, [2,0,1,1])
         self.confirmbutton = Button(self, text='Confirm', width=10, command=lambda: self.confirmresponse())
 
-        self.confirmbutton.grid(row=2, column=0)
+        self.confirmbutton.grid(row=2, column=0, pady=5, padx=90)
 
     def confirmresponse(self):
         if not self.audioVar.get():
@@ -480,6 +483,36 @@ class responsebutton_wordselect:
             self.buttons[i].grid(row=0, column=i, sticky='ws', padx=30)
         
         self.inaudible.grid(row=0, column=i+1, sticky='s')
+    def update_val(self, newval):
+        self.var.set(newval)
+
+class responsebutton_typein:
+    def __init__(self, root, vaript=None, sentences='', pos=[0,0,1,1]):
+        self.parent = Frame(root) # frame to hold the box and labels
+
+        if vaript is None:
+            self.var = StringVar()
+        else :
+            self.var = vaript # value of the entry
+
+        self.groundtruth=Label(self.parent, text=sentences)
+
+        self.pretxt=Label(self.parent, text='Now we will say', font=('Arial', 14))
+        self.typebox=Entry(self.parent, textvariable=self.var, width=5, font=('Arial',14))
+        self.posttxt=Label(self.parent, text='again', font=('Arial', 14))
+        self.place_on_grid(pos) # place things on the grid
+
+    def place_on_grid(self, newpos):
+        self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
+        self.parent.grid_rowconfigure(0,weight=1)
+        self.parent.grid_rowconfigure(1,weight=1)
+        self.parent.grid_columnconfigure(0,weight=1)
+
+        self.groundtruth.grid(row=0, column=1, sticky='s', padx=5)
+        self.pretxt.grid(row=1, column=0, sticky='ne', padx=5)
+        self.typebox.grid(row=1,column=1, sticky='n',padx=5)
+        self.posttxt.grid(row=1, column=2, sticky='nw', padx=5)
+        
     def update_val(self, newval):
         self.var.set(newval)
 
@@ -744,7 +777,7 @@ class dropdownmenu():
         self.menu.config(width=8, height=1)
         self.place_on_grid(pos)
 
-        if self.var.get()=='MRT [Hurr.]':
+        if 'MRT' in self.var.get():
             idfilevar = StringVar(self.parent,value='data/mrt/recordings.txt')
             sentencefilevar = StringVar(self.parent,value='data/mrt/sentences.txt')
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
@@ -767,9 +800,9 @@ class dropdownmenu():
 
         self.methodfiles=[]
         # self.methodfilesvar=[]
-        if self.var.get()=='MRT [Hurr.]':
-            idfilevar = StringVar(self.parent,value='recordings.txt')
-            sentencefilevar = StringVar(self.parent,value='sentences.txt')
+        if 'MRT' in self.var.get():
+            idfilevar = StringVar(self.parent,value='data/mrt/recordings.txt')
+            sentencefilevar = StringVar(self.parent,value='data/mrt/sentences.txt')
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
             self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
@@ -836,8 +869,8 @@ if __name__=='__main__':
     subjectIDvar=StringVar(paramframe, value='ID')
     subjectID=textentry(paramframe, 'Subject ID: ', subjectIDvar, [0,0,1,1])
 
-    methodvar=StringVar(paramframe, value='MRT [Hurr.]')
-    methodmenu=dropdownmenu(paramframe, 'Test type: ', methodvar, ['MRT [Hurr.]', 'other'], [1,0,1,1])
+    methodvar=StringVar(paramframe, value='MRT [Type]')
+    methodmenu=dropdownmenu(paramframe, 'Test type: ', methodvar, ['MRT [Click]', 'MRT [Type]', 'other'], [1,0,1,1])
     # methodvar.set('MRT [Hurr.]')
 
     # reffilesvar=StringVar(paramframe, value=['reference.txt', 'sentences.txt'])
