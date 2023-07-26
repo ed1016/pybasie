@@ -814,8 +814,8 @@ class dropdownmenu():
         self.place_on_grid(pos)
 
         if 'MRT' in self.var.get():
-            idfilevar = StringVar(self.parent,value=os.path.join('data','mrt','recordings.txt'))
-            sentencefilevar = StringVar(self.parent,value=os.path.join('data','mrt','sentences.txt'))
+            idfilevar = StringVar(self.parent,value=os.path.join('data','recordings.txt'))
+            sentencefilevar = StringVar(self.parent,value=os.path.join('data','sentences.txt'))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
             self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
