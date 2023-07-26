@@ -119,7 +119,7 @@ def run_practice(**kwargs):
         for i in range(int(nt)):
             flg=0
             while flg==0:
-                snr = snrlist[i]
+                snr = random.choice(snrlist)
                 snridx = np.where(np.in1d(availsnr, snr))[0];
                 currentfile=random.choice([filelist[j] for j in snridx])
                 filenames[i,:] = currentfile
@@ -187,13 +187,20 @@ def run_trials(**kwargs):
             else:
                 if os.path.isfile(os.path.join(selectedID,'finished.pkl')):
                     pklfile=os.path.join(selectedID,'finished.pkl')
+                    with open(pklfile, 'rb') as f:
+                        [srt_estimator, evalmodel, snr, filenames, choices]=pickle.load(f)
                 elif os.path.isfile(os.path.join(selectedID,'paused.pkl')):
                     pklfile=os.path.join(selectedID,'paused.pkl')
+                    with open(pklfile, 'rb') as f:
+                        [srt_estimator, evalmodel, snr, filenames, choices]=pickle.load(f)
                 else:
                     print('no .pkl file')
+                    srt_estimator=basie_estimator()
+                    [snr, evalmodel,_,_] = srt_estimator.initialise(nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
+                    filenames=[]
+                    choices=[]
 
-                with open(pklfile, 'rb') as f:
-                    [srt_estimator, evalmodel, snr, filenames, choices]=pickle.load(f)
+
         else:
             srt_estimator=basie_estimator()
             [snr, evalmodel,_,_] = srt_estimator.initialise(nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
