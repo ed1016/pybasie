@@ -6,8 +6,8 @@ babblepath='~/OneDrive - Imperial College London/Data/External/Ace/Single';
 n_type='babble';
 devices=[1,1,1]; % can add other devices later
 snr=[5:5:20];
-reverbid='Office_1';%'%ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby
-reverboutname='office';
+reverbid='anechoic';%'%ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby
+reverboutname='anechoic';
 % nfiles=length(snr);
 nsnr=length(snr);
 
@@ -47,7 +47,13 @@ for iFile=1:49
         case 'white'
             x = randn(length(sig)+nfft, size(devices,1));
         case 'babble'
-            [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
+            if ~strcmp(reverbid, 'anechoic')
+                [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
+
+            else
+                [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
+
+            end
             if fsb~=fssig
                 babble = resample(babble, fs, fsb);
             end

@@ -34,16 +34,22 @@ for iFile=50
                 x(:,iArr)=v_stdspectrum(11,'t',fs,length(sig)+nfft); % generate n samples of speech-shaped noise
             end
         case 'white'
-            x = randn(length(sig)+nfft, smize(devices,1));
+            x = randn(length(sig)+nfft, size(devices,1));
         case 'babble'
-            [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
+            if ~strcmp(reverbid, 'anechoic')
+                [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
+
+            else
+                [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
+
+            end
             if fsb~=fssig
                 babble = resample(babble, fs, fsb);
             end
             x = zeros(length(sig)+nfft, size(devices,1));
             tmp = length(sig)+nfft;
             for iArr=1:size(devices,1)
-                x(:,iArr) = babble((iArr-1)*tp+1:iArr*tmp);
+                x(:,iArr) = babble((iArr-1)*tmp+1:iArr*tmp);
             end
         otherwise
             error('unknown noise')
