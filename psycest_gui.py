@@ -25,6 +25,7 @@ import pandas as pd
 from pydub import AudioSegment
 from pydub.playback import play
 import warnings
+import platform
 
 
 # own libraries
@@ -346,9 +347,10 @@ class calibration_window(Toplevel):
 
         self.text=Label(self, text='Now we will say fun again')
         self.text.grid(row=0, column=0, columnspan=2)
-        cleanfile='data/mrt_hq/clearspeech'
-        self.clearaudiobtn = launchbutton(self, play_audio_loop, 'Clean speech', [1,0,1,1], audiofile=cleanfile+'/clearspeech.wav')
-        self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max. loudness', [1,1,1,1], audiofile=cleanfile+'/maxloudness.wav')
+        print(audiofile.split('/'))
+        cleanfile=os.path.join(audiofile, 'clearspeech')
+        self.clearaudiobtn = launchbutton(self, play_audio_loop, 'Clean', [1,0,1,1], audiofile=os.path.join(cleanfile, 'clearspeech.wav'))
+        self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max.', [1,1,1,1], audiofile=os.path.join(cleanfile, 'maxloudness.wav'))
 
 class responsewindow_MRT(Toplevel):
     def __init__(self, root, audiofile, reftxt, senttxt,  titlestr, method):
@@ -514,7 +516,6 @@ class responsebutton_wordselect:
         self.inaudible.grid(row=0, column=i+1, sticky='s')
     def update_val(self, newval):
         self.var.set(newval)
-
 class responsebutton_typein:
     def __init__(self, root, vaript=None, sentences='', pos=[0,0,1,1]):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -830,8 +831,8 @@ class dropdownmenu():
         self.methodfiles=[]
         # self.methodfilesvar=[]
         if 'MRT' in self.var.get():
-            idfilevar = StringVar(self.parent,value='data/mrt/recordings.txt')
-            sentencefilevar = StringVar(self.parent,value='data/mrt/sentences.txt')
+            idfilevar = StringVar(self.parent,value=os.path.join('data','mrt','recordings.txt'))
+            sentencefilevar = StringVar(self.parent,value=os.path.join('data','mrt','sentences.txt'))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
             self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
@@ -889,10 +890,10 @@ if __name__=='__main__':
     paramframe.grid_columnconfigure(2, weight=1)
 
 
-    audiofilevar=StringVar(paramframe, value='data/mrt_hq')
+    audiofilevar=StringVar(paramframe, value=os.path.join('data','mrt_hq'))
     audiobtn=browsebutton(paramframe, 'Audio files: ', audiofilevar, [0,1,1,1])
 
-    outputdirvar=StringVar(paramframe, value='data/results')
+    outputdirvar=StringVar(paramframe, value=os.path.join('data','results'))
     outputdir=browsebutton(paramframe, 'Output directory: ', outputdirvar, [0,2,1,1])
 
     subjectIDvar=StringVar(paramframe, value='ID')
@@ -944,7 +945,7 @@ if __name__=='__main__':
     experframe.grid_columnconfigure(1, weight=1)
     experframe.grid_columnconfigure(2, weight=1)
 
-    calibratebtn=launchbutton(experframe, run_calibration, 'Calibration', [0,0,1,1], audiofiles=audiofilevar, rootfig=mainfig)
+    calibratebtn=launchbutton(experframe, run_calibration, 'Calibrate', [0,0,1,1], audiofiles=audiofilevar, rootfig=mainfig)
 
 
     practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,1,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig, method=methodvar, 
