@@ -1,13 +1,13 @@
 addpath(genpath('~/Documents/MATLAB/sap-voicebox'))
 
-rirpath='~/OneDrive - Imperial College London/Data/External/Ace/Single';%'~/OneDrive - Imperial College London/Data/External/OpenAIR/saint-lawrence-church-molenbeek-wersbeek-belgium/stereo'%'~/OneDrive - Imperial College London/Data/External/Ace/Single';
+% rirpath='~/OneDrive - Imperial College London/Data/External/Ace/Single';%'~/OneDrive - Imperial College London/Data/External/OpenAIR/saint-lawrence-church-molenbeek-wersbeek-belgium/stereo'%'~/OneDrive - Imperial College London/Data/External/Ace/Single';
 sentencepath='~/OneDrive - Imperial College London/Data/External/Hurricane_high_quality/quiet_mrt';
-babblepath='~/OneDrive - Imperial College London/Data/External/Ace/Single';%'~/OneDrive - Imperial College London/Data/External/NatoNoise0';
+babblepath='~/OneDrive - Imperial College London/Data/External/Ace/Single';
 n_type='babble';
 devices=[1,1,1]; % can add other devices later
-snr=[-20:1:20];
-reverbid='Office_1';%'ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby
-reverboutname='office';
+snr=-20;
+% reverbid='Building_Lobby';%'%ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby
+% reverboutname='lobby';
 % nfiles=length(snr);
 nsnr=length(snr);
 
@@ -15,28 +15,17 @@ fs=48000;
 sentdir = dir(fullfile(sentencepath, '*mrt*.wav'));
 sentnames = sort({sentdir.name});
 nfiles=length(sentnames);
+mkdir(sprintf('data/mrt_hq/clearspeech'))
 
-mkdir(sprintf('data/mrt_hq/%s', reverboutname))
 %%
 % sentnames= sentnames(randperm(length(sentnames)));
 nfft = 2*(round(0.016*fs)-1);
 % load sentence s
-for iFile=51:nfiles
-    [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}),'p');
+for iFile=50
+    [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}));
     origsig = resample(origsig, fs, fssig);
 
-    if ~strcmp(reverbid, 'anechoic')
-        if ~contains(rirpath,'OpenAIR')
-            [rir, fsrir]=v_readwav(fullfile(rirpath,reverbid, '1',dir(fullfile(rirpath, reverbid, "1", '*RIR*.wav')).name),'p');
-            rir=resample(rir, fs, fsrir);
-        else
-            [rir, fsrir]=v_readwav(fullfile(rirpath,reverbid),'p');
-            rir=resample(rir(:,1), fs, fsrir);
-        end
-        sig=filter(rir,1, origsig);
-    else
-        sig = origsig;
-    end
+    sig = origsig;
 
     switch n_type
         case 'speech-shaped'
@@ -59,13 +48,11 @@ for iFile=51:nfiles
         otherwise
             error('unknown noise')
     end
-
-
     %     snr(iFile)
     for iSnr=1:nsnr
-       out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
-       v_writewav(out, fs, sprintf('data/mrt_hq/%s/%s_reverb_%s_snr_%i_db.wav',reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
-            reverboutname, snr(iSnr)), 'g')
+        out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
+        v_writewav(sig, fs, sprintf('data/mrt_hq/clearspeech/clearspeech.wav'), 'g')
+        v_writewav(out, fs, sprintf('data/mrt_hq/clearspeech/maxloudness.wav'), 'g')
     end
 end
 

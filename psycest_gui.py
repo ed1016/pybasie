@@ -45,6 +45,11 @@ def play_audio(**kwargs):
         audiovar.set('True')
     else:
         print('already played audio')
+def play_audio_loop(**kwargs):
+    audiofile=kwargs.get('audiofile')
+    print('playing this file: ', audiofile)
+    song = AudioSegment.from_wav(audiofile)
+    play(song);
 def extractfilelist(folderpath):
     foldfiles = os.listdir(folderpath)
 
@@ -86,6 +91,12 @@ def check_ID_day(outfolder, ID):
                 if timestamp in j:
                     matches.append(os.path.join(outfolder,i, j))
     return matches
+
+def run_calibration(**kwargs):
+    audiofiles=kwargs.get('audiofiles').get()
+    root=kwargs.get('rootfig')
+    print('hello')
+    calibration_window(root, audiofiles)
 
 
 def run_practice(**kwargs):
@@ -320,6 +331,24 @@ def run_trials(**kwargs):
 
         plotarea.hidepause()
         plotarea.pausevar.set('active')
+
+class calibration_window(Toplevel):
+    def __init__(self, root, audiofile):
+        Toplevel.__init__(self,root)
+        self.title('Calibration window')
+        self.geometry("%dx%d+%d+%d" %(400,200,root.winfo_x()+400, root.winfo_y()+300))   
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_rowconfigure(1, weight=1)
+
+        self.grid_columnconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        self.text=Label(self, text='Now we will say fun again')
+        self.text.grid(row=0, column=0, columnspan=2)
+        cleanfile='data/mrt_hq/clearspeech'
+        self.clearaudiobtn = launchbutton(self, play_audio_loop, 'Clean speech', [1,0,1,1], audiofile=cleanfile+'/clearspeech.wav')
+        self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max. loudness', [1,1,1,1], audiofile=cleanfile+'/maxloudness.wav')
 
 class responsewindow_MRT(Toplevel):
     def __init__(self, root, audiofile, reftxt, senttxt,  titlestr, method):
@@ -860,7 +889,7 @@ if __name__=='__main__':
     paramframe.grid_columnconfigure(2, weight=1)
 
 
-    audiofilevar=StringVar(paramframe, value='data/mrt')
+    audiofilevar=StringVar(paramframe, value='data/mrt_hq')
     audiobtn=browsebutton(paramframe, 'Audio files: ', audiofilevar, [0,1,1,1])
 
     outputdirvar=StringVar(paramframe, value='data/results')
@@ -891,7 +920,7 @@ if __name__=='__main__':
     maxsnrvar=StringVar(advancedparamframe, value='20.0')
     maxsnr=textentry(advancedparamframe, 'Max SNR (dB): ', maxsnrvar, [0,2,1,1], [0, 1])
 
-    ntrialsvar=StringVar(advancedparamframe, value=4)
+    ntrialsvar=StringVar(advancedparamframe, value=40)
     ntrials=textentry(advancedparamframe, 'Max nbr. trials: ', ntrialsvar, [1,2,1,1])
 
     guessratevar=StringVar(advancedparamframe, value=0.1)
@@ -913,11 +942,15 @@ if __name__=='__main__':
     experframe.grid_rowconfigure(0, weight=1)
     experframe.grid_columnconfigure(0, weight=1)
     experframe.grid_columnconfigure(1, weight=1)
+    experframe.grid_columnconfigure(2, weight=1)
 
-    practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,0,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig, method=methodvar, 
+    calibratebtn=launchbutton(experframe, run_calibration, 'Calibration', [0,0,1,1], audiofiles=audiofilevar, rootfig=mainfig)
+
+
+    practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,1,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig, method=methodvar, 
         methodfiles=methodmenu.methodfilesvar)
 
-    runbutton=launchbutton(experframe, run_trials, 'Start', [0,1,1,1], id=subjectIDvar, ntrials=ntrialsvar, audiofiles=audiofilevar, 
+    runbutton=launchbutton(experframe, run_trials, 'Start', [0,2,1,1], id=subjectIDvar, ntrials=ntrialsvar, audiofiles=audiofilevar, 
         rootfig=mainfig, mrate=missratevar, grate=guessratevar, outdir=outputdirvar, slopeweight=slopeweightvar, plot=canvas, minsnr=minsnrvar, maxsnr=maxsnrvar,
         method=methodvar, methodfiles=methodmenu.methodfilesvar)
 
