@@ -34,7 +34,7 @@ for iFile=50
                 x(:,iArr)=v_stdspectrum(11,'t',fs,length(sig)+nfft); % generate n samples of speech-shaped noise
             end
         case 'white'
-            x = randn(length(sig)+nfft, size(devices,1));
+            x = randn(length(sig)+nfft, smize(devices,1));
         case 'babble'
             [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
             if fsb~=fssig
@@ -43,7 +43,7 @@ for iFile=50
             x = zeros(length(sig)+nfft, size(devices,1));
             tmp = length(sig)+nfft;
             for iArr=1:size(devices,1)
-                x(:,iArr) = babble((iArr-1)*tmp+1:iArr*tmp);
+                x(:,iArr) = babble((iArr-1)*tp+1:iArr*tmp);
             end
         otherwise
             error('unknown noise')
@@ -51,8 +51,8 @@ for iFile=50
     %     snr(iFile)
     for iSnr=1:nsnr
         out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
-        v_writewav(sig, fs, sprintf('data/mrt_hq/clearspeech/clearspeech.wav'), 'g')
-        v_writewav(out, fs, sprintf('data/mrt_hq/clearspeech/maxloudness.wav'), 'g')
+        v_writewav(sig./10, fs, sprintf('data/mrt_hq/clearspeech/clearspeech.wav'))
+        v_writewav(out./10, fs, sprintf('data/mrt_hq/clearspeech/maxloudness.wav'))
     end
 end
 

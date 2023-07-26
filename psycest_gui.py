@@ -929,7 +929,7 @@ if __name__=='__main__':
     missratevar=StringVar(advancedparamframe, value=0.04)
     missrate=textentry(advancedparamframe, 'Miss rate: ', missratevar, [1,1,1,1], [0, 1])
 
-    ntrialspractice=4
+    ntrialspractice=5
     # --------- Control area ---------
     plotframe.grid_rowconfigure(0, weight=1)
     plotframe.grid_rowconfigure(1, weight=1)

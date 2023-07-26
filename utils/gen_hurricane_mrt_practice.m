@@ -6,8 +6,8 @@ babblepath='~/OneDrive - Imperial College London/Data/External/Ace/Single';
 n_type='babble';
 devices=[1,1,1]; % can add other devices later
 snr=[5:5:20];
-reverbid='Building_Lobby';%'%ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby
-reverboutname='lobby';
+reverbid='Office_1';%'%ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby
+reverboutname='office';
 % nfiles=length(snr);
 nsnr=length(snr);
 
@@ -59,12 +59,12 @@ for iFile=1:49
         otherwise
             error('unknown noise')
     end
-    
+
     %     snr(iFile)
     for iSnr=1:nsnr
         out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
-        v_writewav(out, fs, sprintf('data/mrt_hq/%s/practice_%s_reverb_%s_snr_%i_db.wav',reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
-            reverboutname, snr(iSnr)), 'g')
+        v_writewav(out./10, fs, sprintf('data/mrt_hq/%s/practice_%s_reverb_%s_snr_%i_db.wav',reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
+            reverboutname, snr(iSnr)))
     end
 end
 
