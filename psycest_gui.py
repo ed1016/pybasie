@@ -347,7 +347,6 @@ class calibration_window(Toplevel):
 
         self.text=Label(self, text='Now we will say fun again')
         self.text.grid(row=0, column=0, columnspan=2)
-        print(audiofile.split('/'))
         cleanfile=os.path.join(audiofile, 'clearspeech')
         self.clearaudiobtn = launchbutton(self, play_audio_loop, 'Clean', [1,0,1,1], audiofile=os.path.join(cleanfile, 'clearspeech.wav'))
         self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max.', [1,1,1,1], audiofile=os.path.join(cleanfile, 'maxloudness.wav'))
@@ -372,7 +371,7 @@ class responsewindow_MRT(Toplevel):
         self.audioVar=StringVar()
         self.audiobtn = launchbutton(self, play_audio, 'Play', [0,0,1,1], audiofile=audiofile, audioVar=self.audioVar)
 
-        shortaudio=audiofile.split("/")[-1]
+        shortaudio=audiofile.split(os.sep)[-1]
         if "practice" not in shortaudio:
             fileID="_".join(shortaudio.split("_", 2)[:2])
         else:
@@ -808,8 +807,8 @@ class dropdownmenu():
         self.place_on_grid(pos)
 
         if 'MRT' in self.var.get():
-            idfilevar = StringVar(self.parent,value='data/mrt/recordings.txt')
-            sentencefilevar = StringVar(self.parent,value='data/mrt/sentences.txt')
+            idfilevar = StringVar(self.parent,value=os.path.join('data','mrt','recordings.txt'))
+            sentencefilevar = StringVar(self.parent,value=os.path.join('data','mrt','sentences.txt'))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
             self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
@@ -870,12 +869,12 @@ if __name__=='__main__':
     imgframe.grid_columnconfigure(0, weight=1)
     imgframe.grid_rowconfigure(0, weight=1)
 
-    iclimg=Image.open("docs/icllogo.png")
+    iclimg=Image.open(os.path.join('docs','icllogo.png'))
     iclimg.thumbnail((168,150), Image.Resampling.LANCZOS)
     iclrender = ImageTk.PhotoImage(iclimg, master=imgframe)
     icllogo=Label(imgframe, image=iclrender).grid(row=0, column=0, sticky='w')
 
-    uclimg=Image.open("docs/ucllogo.png")
+    uclimg=Image.open(os.path.join('docs','ucllogo.png'))
     uclimg.thumbnail((150,150), Image.Resampling.LANCZOS)
     uclrender = ImageTk.PhotoImage(uclimg, master=imgframe)
     ucllogo=Label(imgframe, image=uclrender).grid(row=0, column=1, sticky='e')
