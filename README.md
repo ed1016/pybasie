@@ -5,6 +5,7 @@ This software requires a working version of python. Download [here](https://www.
 You also need to have [git installed](https://git-scm.com/download/win) on your computer. 
 
 Open `Git Bash` and follow these steps to launch the GUI.
+
 Clone this repository
 ```git
 git clone https://github.com/ed1016/py_bayesi.git
