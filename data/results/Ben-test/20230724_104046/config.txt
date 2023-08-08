@@ -1,1 +1,0 @@
-time: 20230724_104046 	 subjectID: Ben-test 	 audio folder: /Users/emiliedolne/Library/CloudStorage/OneDrive-ImperialCollegeLondon/PhD/Year 3/Smartter hear/py_bayesi/data/mrt/old 	 model parameters: [  0.5    0.04   0.1  -20.    20.     0.     0.5 ] 	 reverb list: ['Office_1'] 	 ntrials: 4

@@ -96,7 +96,6 @@ def check_ID_day(outfolder, ID):
 def run_calibration(**kwargs):
     audiofiles=kwargs.get('audiofiles').get()
     root=kwargs.get('rootfig')
-    print('hello')
     calibration_window(root, audiofiles)
 
 
@@ -206,7 +205,6 @@ def run_trials(**kwargs):
             [snr, evalmodel,_,_] = srt_estimator.initialise(nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
             filenames=[]
             choices=[]
-
         os.makedirs(os.path.join(outdir, ID, timestamp), exist_ok=True)
         varcount=0
         # ------------ plot parameters ------------
@@ -253,8 +251,8 @@ def run_trials(**kwargs):
         plotarea.activatepause()
         # ax.ylim([-20, 20])
         # -----------------------------------------
-
-        for i in range(int(nt)):
+        ntadjust=len(filenames)
+        for i in range(int(nt)-ntadjust):
             flg=0
             # plot update
             x,y = lines[evalmodel-1].get_data()
@@ -275,7 +273,7 @@ def run_trials(**kwargs):
                 currentfile=random.choice([filelist[evalmodel-1][j] for j in snridx])
 
             filenames.append(currentfile)
-            trialtitle = 'Trial ' + str(i+1) +'/' + str(nt)
+            trialtitle = 'Trial ' + str(i+1) +'/' + str(nt-ntadjust)
             plotarea.filevar.set("Playing: "+currentfile)
             while flg==0:
                 if 'MRT' in method:
@@ -354,7 +352,7 @@ class calibration_window(Toplevel):
 
         self.text=Label(self, text='Now we will say fun again')
         self.text.grid(row=0, column=0, columnspan=2)
-        cleanfile=os.path.join(audiofile, 'clearspeech')
+        cleanfile= audiofile.split(audiofile.split(os.sep)[-1])[0]
         self.clearaudiobtn = launchbutton(self, play_audio_loop, 'Clean', [1,0,1,1], audiofile=os.path.join(cleanfile, 'clearspeech.wav'))
         self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max.', [1,1,1,1], audiofile=os.path.join(cleanfile, 'maxloudness.wav'))
 
@@ -777,7 +775,7 @@ class listselect(Toplevel):
 
         self.label = Label(self, text='An experiment already exists for this ID today - please select what to load', font=('Arial', 12))
         self.label.grid(row=0,column=0)
-        self.listbox = ttk.Combobox(self, values=filelist, textvariable=self.responseVar)
+        self.listbox = ttk.Combobox(self, values=filelist, textvariable=self.responseVar, width=30)
         self.listbox.grid(row=1, column=0)
 
         # self.responsebtns = responsebutton(self, self.responseVar, [1,0,1,1])
@@ -837,8 +835,8 @@ class dropdownmenu():
         self.methodfiles=[]
         # self.methodfilesvar=[]
         if 'MRT' in self.var.get():
-            idfilevar = StringVar(self.parent,value=os.path.join('data','mrt','recordings.txt'))
-            sentencefilevar = StringVar(self.parent,value=os.path.join('data','mrt','sentences.txt'))
+            idfilevar = StringVar(self.parent,value=os.path.join('data','recordings.txt'))
+            sentencefilevar = StringVar(self.parent,value=os.path.join('data','sentences.txt'))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
             self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
