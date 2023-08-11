@@ -48,9 +48,11 @@ def play_audio(**kwargs):
         print('already played audio')
 def play_audio_loop(**kwargs):
     audiofile=kwargs.get('audiofile')
+    audiovar=kwargs.get('audioVar')
     print('playing this file: ', audiofile)
     song = AudioSegment.from_wav(audiofile)
     play(song);
+    audiovar.set('True')
 def extractfilelist(folderpath):
     foldfiles = os.listdir(folderpath)
 
@@ -106,13 +108,19 @@ def run_practice(**kwargs):
     method = kwargs.get('method').get()
     methodfiles=kwargs.get('methodfiles').get().split(',')
 
-    filelist, availsnr = extractfilelist_practice(audiofiles)
+    try:
+        filelist, availsnr = extractfilelist_practice(audiofiles)
+    except:
+        filelist=[]
+        availsnr=[]
     if not filelist :
         print('No .wav files in provided folder')
+        messagebox.showerror(message="Error: No .wav files in provided folder", icon="error")
     elif not availsnr:
         print('Wrong snr naming convention in provided folder')
+        messagebox.showerror(message="Error: Wrong snr naming convention in provided folder", icon="error")
     else:
-
+        templist=[]
         snrlist = list(set(availsnr))
         filenames=np.empty((nt, 1), dtype=object)
         for i in range(int(nt)):
@@ -120,7 +128,33 @@ def run_practice(**kwargs):
             while flg==0:
                 snr = random.choice(snrlist)
                 snridx = np.where(np.in1d(availsnr, snr))[0];
-                currentfile=random.choice([filelist[j] for j in snridx])
+                try: # try unique file options
+                    templist=[]
+                    for j in snridx:
+                        fileID=filelist[j].split('_reverb')[0].split('practice_')[1]
+                        # check if recording name has been used previously
+                        if all(fileID not in s for s in filenames):
+                            # check if not semantically to complicated
+                            fileID.replace('\n', '')
+                            with open(methodfiles[0]) as file:
+                                for num, line in enumerate(file, 1):
+                                    if fileID in line:
+                                        listnbr=num-1
+                                        for l in range(len(line.split('\t')[1:])):
+                                            if fileID in line.split('\t')[l+1]:
+                                                idxinlist=l
+                            with open(methodfiles[1]) as file:
+                                wordlist=file.readlines()[listnbr].split('\t')[1:]
+                            fileWord=wordlist[idxinlist].replace('\n', '')
+                            if fileWord != 'excluded':
+                                print(fileID, fileWord)
+                                templist.append(filelist[j])
+                    currentfile=random.choice(templist)
+                except: # if you have tried everything already
+                    currentfile=random.choice([filelist[j] for j in snridx])
+
+
+                # currentfile=random.choice([filelist[j] for j in snridx])
                 filenames[i,:] = currentfile
                 trialtitle = 'Practice ' + str(i+1) +'/' + str(nt)
                 if 'MRT' in method:
@@ -131,6 +165,7 @@ def run_practice(**kwargs):
                     flg=1
 
 def run_trials(**kwargs):
+    # trial parameters
     nt = int(kwargs.get('ntrials').get())
     audiofiles = kwargs.get('audiofiles').get()
     ID = kwargs.get('id').get()
@@ -150,12 +185,18 @@ def run_trials(**kwargs):
     plotarea=kwargs.get('plot')
 
     basiep={'cs': slopeweight}
-    reverblist, filelist, availsnr = extractfilelist(audiofiles)
-
+    try:
+        reverblist, filelist, availsnr = extractfilelist(audiofiles)
+    except:
+        filelist=[]
+        reverblist=[]
+        availsnr=[]
     if not filelist :
         print('No .wav files in provided folder')
+        messagebox.showerror(message="Error: No .wav files in provided folder", icon="error")
     elif not availsnr:
         print('Wrong snr naming convention in provided folder')
+        messagebox.showerror(message="Error: Wrong snr naming convention in provided folder", icon="error")
     else:
         timestamp = dt.now().strftime("%Y%m%d_%H%M%S")#
         nmodels = len(reverblist)
@@ -266,8 +307,24 @@ def run_trials(**kwargs):
             try: # try unique file options
                 templist=[]
                 for j in snridx:
-                    if filelist[evalmodel-1][j] not in filenames:
-                        templist.append(filelist[evalmodel-1][j])
+                    fileID=filelist[evalmodel-1][j].split('_reverb')[0]
+                    # check if recording name has been used previously
+                    if all(fileID not in s for s in filenames):
+                        # check if not semantically to complicated
+                        fileID.replace('\n', '')
+                        with open(methodfiles[0]) as file:
+                            for num, line in enumerate(file, 1):
+                                if fileID in line:
+                                    listnbr=num-1
+                                    for l in range(len(line.split('\t')[1:])):
+                                        if fileID in line.split('\t')[l+1]:
+                                            idxinlist=l
+                        with open(methodfiles[1]) as file:
+                            wordlist=file.readlines()[listnbr].split('\t')[1:]
+                        fileWord=wordlist[idxinlist].replace('\n', '')
+                        if fileWord != 'excluded':
+                            print(fileID, fileWord)
+                            templist.append(filelist[evalmodel-1][j])
                 currentfile=random.choice(templist)
             except: # if you have tried everything already
                 currentfile=random.choice([filelist[evalmodel-1][j] for j in snridx])
@@ -353,8 +410,8 @@ class calibration_window(Toplevel):
         self.text=Label(self, text='Now we will say fun again')
         self.text.grid(row=0, column=0, columnspan=2)
         cleanfile= audiofile.split(audiofile.split(os.sep)[-1])[0]
-        self.clearaudiobtn = launchbutton(self, play_audio_loop, 'Clean', [1,0,1,1], audiofile=os.path.join(cleanfile, 'clearspeech.wav'))
-        self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max.', [1,1,1,1], audiofile=os.path.join(cleanfile, 'maxloudness.wav'))
+        self.clearaudiobtn = launchbutton(self, play_audio_loop, 'Clean', [1,0,1,1], audiofile=os.path.join(cleanfile, 'clearspeech.wav'), audioVar=StringVar())
+        self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max.', [1,1,1,1], audiofile=os.path.join(cleanfile, 'maxloudness.wav'), audioVar=StringVar())
 
 class responsewindow_MRT(Toplevel):
     def __init__(self, root, audiofile, reftxt, senttxt,  titlestr, method):
@@ -374,7 +431,11 @@ class responsewindow_MRT(Toplevel):
         self.grid_columnconfigure(0, weight=1)
 
         self.audioVar=StringVar()
-        self.audiobtn = launchbutton(self, play_audio, 'Play', [0,0,1,1], audiofile=audiofile, audioVar=self.audioVar)
+
+        if 'Click' in method:
+            self.audiobtn = launchbutton(self, play_audio, 'Play', [0,0,1,1], audiofile=audiofile, audioVar=self.audioVar)
+        elif 'Type' in method:
+            self.audiobtn = launchbutton(self, play_audio_loop, 'Play', [0,0,1,1], audiofile=audiofile, audioVar=self.audioVar)
 
         shortaudio=audiofile.split(os.sep)[-1]
         if "practice" not in shortaudio:

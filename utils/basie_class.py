@@ -627,7 +627,7 @@ class basie_estimator():
         sq2 = np.linspace(sq2lim[0], sq2lim[1], int(nsq)).reshape(-1, 1) # new s axis values
         wqup = 2 # update flag
         if xq2[0] < xqi[0] or xq2[-1] > xqi[-1] or sq2[0] < sqi[0] or sq2[-1] > sqi[-1]:
-#             if extrapolating, recalculate log-pdfs from saved data
+             #if extrapolating, recalculate log-pdfs from saved data
             if LOG:
                 print(f'N={iq}:{int(nresq[0,iq-1])}, extrapolate: x({xqi[0]:.2f},{xqi[-1]:.2f})->({xq2[0]},{xq2[-1]}) and s({sqi[0]:.2f},{sqi[-1]:.2f})->({sq2[0]},{sq2[-1]})')
 
