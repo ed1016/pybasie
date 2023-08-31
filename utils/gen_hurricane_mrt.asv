@@ -5,9 +5,10 @@ sentencepath='~/OneDrive - Imperial College London/Data/External/Hurricane_high_
 babblepath='~/OneDrive - Imperial College London/Data/External/Ace/Single';%'~/OneDrive - Imperial College London/Data/External/NatoNoise0';
 n_type='babble';
 devices=[1,1,1]; % can add other devices later
-reverbid='anechoic';%'ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby % Lecture_Room_2
-reverboutname='anechoic';
+reverbid='Building_Lobby';%'ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby % Lecture_Room_2
+reverboutname='lobby';
 % nfiles=length(snr);
+nsnr=length(snr);
 
 fs=48000;
 sentdir = dir(fullfile(sentencepath, '*mrt*.wav'));
@@ -22,11 +23,12 @@ nfft = 2*(round(0.016*fs)-1);
 excludedfiles=[50,5,105,255,8,158,208,10,60,160,62,16,266,168,269,20,221,175,26,129,134,86,37,187,142,94,48];
 
 % load rir
-if ~contains(reverbid,'anechoic')
+if ~contains(rirpath,'OpenAIR')
+    [rir, fsrir]=v_readwav(fullfile(rirpath,reverbid, '1',dir(fullfile(rirpath, reverbid, "1", '*RIR*.wav')).name));
+    rir=resample(rir, fs, fsrir);
+else
     [rir, fsrir]=v_readwav(fullfile(rirpath,reverbid));
     rir=resample(rir(:,1), fs, fsrir);
-else
-    rir=1;
 end
 
 % load noise
@@ -46,14 +48,16 @@ switch n_type
         [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
 
         %             end
-        if fsb~=fs
+        if fsb~=fssig
             babble = resample(babble, fs, fsb);
         end
 
-        x = zeros(fs*10, size(devices,1));
-        tmp = fs*10;
+        babble=filter(rir, 1, babble);
+
+        x = zeros(fs*1, size(devices,1));
+        tmp = fs*1;
         for iArr=1:size(devices,1)
-            x(:,iArr) = filter(rir, 1,babble(10*fs+(iArr-1)*tmp+1:10*fs+iArr*tmp));
+            x(:,iArr) = babble(10*fs+(iArr-1)*tmp+1:10*fs+iArr*tmp);
         end
     otherwise
         error('unknown noise')
@@ -72,7 +76,7 @@ for iFile=1:2
     end
 
     %     snr(iFile)
-    for iSnr=1:length(snr)
+    for iSnr=1:nsnr
         out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
         v_writewav(out./10, fs, sprintf('data/mrt_hq/%s/practice_%s_reverb_%s_snr_%i_db.wav',reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
             reverboutname, snr(iSnr)))
@@ -93,7 +97,7 @@ for iFile=3:nfiles
         end
     
         %     snr(iFile)
-        for iSnr=1:length(snr)
+        for iSnr=1:nsnr
             out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
             v_writewav(out./10, fs, sprintf('data/mrt_hq/%s/%s_reverb_%s_snr_%i_db.wav',reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
                 reverboutname, snr(iSnr)))
@@ -101,20 +105,50 @@ for iFile=3:nfiles
     end
 end
 
-snr=-20;
 if strcmp(reverbid,'anechoic')
-    for iFile=50
-        [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}));
-        origsig = resample(origsig, fs, fssig);
-    
-        sig = origsig;
-        %     snr(iFile)
-        for iSnr=1:length(snr)
-            out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
-            v_writewav(sig./10, fs, sprintf('data/mrt_hq/clearspeech.wav'))
-            v_writewav(out./10, fs, sprintf('data/mrt_hq/maxloudness.wav'))
-        end
+for iFile=50
+    [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}));
+    origsig = resample(origsig, fs, fssig);
+
+    sig = origsig;
+
+    switch n_type
+        case 'speech-shaped'
+            x = zeros(length(sig)+nfft, size(devices,1));
+            for iArr=1:size(devices,1)
+                x(:,iArr)=v_stdspectrum(11,'t',fs,length(sig)+nfft); % generate n samples of speech-shaped noise
+            end
+        case 'white'
+            x = randn(length(sig)+nfft, size(devices,1));
+        case 'babble'
+            %             if ~strcmp(reverbid, 'anechoic')
+            %                 [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
+            %
+            %             else
+            [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
+
+            %             end
+            if fsb~=fssig
+                babble = resample(babble, fs, fsb);
+            end
+
+            babble=filter(rir, 1, babble);
+
+            x = zeros(length(sig)+nfft, size(devices,1));
+            tmp = length(sig)+nfft;
+            for iArr=1:size(devices,1)
+                x(:,iArr) = babble((iArr-1)*tmp+1:iArr*tmp);
+            end
+        otherwise
+            error('unknown noise')
     end
+    %     snr(iFile)
+    for iSnr=1:nsnr
+        out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
+        v_writewav(sig./10, fs, sprintf('data/mrt_hq/clearspeech/clearspeech.wav'))
+        v_writewav(out./10, fs, sprintf('data/mrt_hq/clearspeech/maxloudness.wav'))
+    end
+end
 end
 
 

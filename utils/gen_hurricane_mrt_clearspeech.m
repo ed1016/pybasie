@@ -36,16 +36,19 @@ for iFile=50
         case 'white'
             x = randn(length(sig)+nfft, size(devices,1));
         case 'babble'
-            if ~strcmp(reverbid, 'anechoic')
-                [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
+            %             if ~strcmp(reverbid, 'anechoic')
+            %                 [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
+            %
+            %             else
+            [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
 
-            else
-                [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
-
-            end
+            %             end
             if fsb~=fssig
                 babble = resample(babble, fs, fsb);
             end
+
+            babble=filter(rir, 1, babble);
+
             x = zeros(length(sig)+nfft, size(devices,1));
             tmp = length(sig)+nfft;
             for iArr=1:size(devices,1)

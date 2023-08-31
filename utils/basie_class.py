@@ -1204,3 +1204,7 @@ class basie_estimator():
             plt.xlabel('SNR (dB)')
             plt.ylabel('Correct response probability')
             plt.title('Psychometric function')
+
+
+
+            
