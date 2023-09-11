@@ -1,13 +1,14 @@
 addpath(genpath('~/Documents/MATLAB/sap-voicebox'))
 
 rirpath='~/OneDrive - Imperial College London/Data/External/Ace/Single';%'~/OneDrive - Imperial College London/Data/External/OpenAIR/saint-lawrence-church-molenbeek-wersbeek-belgium/stereo'%'~/OneDrive - Imperial College London/Data/External/Ace/Single';
+% sentencepath='~/OneDrive - Imperial College London/Data/External/Hurricane_high_quality/quiet_mrt';
 sentencepath='~/Downloads/quiet_mrt';
-% '~/OneDrive - Imperial College London/Data/External/Hurricane_high_quality/quiet_mrt';
-babblepath='~/OneDrive - Imperial College London/Data/External/NatoNoise0';
+% babblepath='~/OneDrive - Imperial College London/Data/External/Ace/Single';%'~/OneDrive - Imperial College London/Data/External/NatoNoise0';
+babblepath='data/babble.wav';
 n_type='babble';
 devices=[1,1,1]; % can add other devices later
-reverbid='Lecture_Room_2';%g'ir_church_saint-laurentius_molenbeek_bekkevoort_belgium.wav'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby % Lecture_Room_2
-reverboutname='lectureroom';
+reverbid='Office_1';% %'Office_1'; % 'anechoic' 'Building_Lobby % Lecture_Room_2
+reverboutname='office';
 % nfiles=length(snr);
 
 fs=48000;
@@ -44,23 +45,23 @@ switch n_type
         %                 [babble,fsb] = v_readwav(fullfile(babblepath, reverbid, '1', dir(fullfile(rirpath, reverbid, '1', '*Babble.wav')).name),'p');
         %
         %             else
-        [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
-
+%         [babble,fsb] = v_readwav('~/OneDrive - Imperial College London/Data/External/NatoNoise0/babble.wav','p');
+        [babble, fsb]=v_readwav(babblepath);
         %             end
         if fsb~=fs
             babble = resample(babble, fs, fsb);
         end
 
-        x = zeros(fs*15, size(devices,1));
-        tmp = fs*15;
+        x = zeros(fs*30, size(devices,1));
+        tmp = fs*30;
         for iArr=1:size(devices,1)
-            x(:,iArr) = filter(rir, 1,babble(10*fs+(iArr-1)*tmp+1:10*fs+iArr*tmp));
+            x(:,iArr) = filter(rir, 1,babble((iArr-1)*tmp+1:iArr*tmp));
         end
     otherwise
         error('unknown noise')
 end
 
-
+%%
 snr=[10:5:20];
 for iFile=1:2
     [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}));
@@ -76,14 +77,13 @@ for iFile=1:2
     for iSnr=1:length(snr)
         out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
         v_writewav(out./10, fs, sprintf('data/mrt_hq/%s/practice_%s_reverb_%s_snr_%i_db.wav',reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
-            reverboutname, snr(iSnr)))
+            reverboutname, snr(iSnr)), 'p')
     end
 end
 
 snr=[-20:1:20];
 % load sentence s
 for iFile=3:nfiles
-    fprintf('file %i/%i\n', iFile, nfiles)
     if ~ismember(iFile, excludedfiles)
         [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}));
         origsig = resample(origsig, fs, fssig);
@@ -98,7 +98,7 @@ for iFile=3:nfiles
         for iSnr=1:length(snr)
             out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
             v_writewav(out./10, fs, sprintf('data/mrt_hq/%s/%s_reverb_%s_snr_%i_db.wav',reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
-                reverboutname, snr(iSnr)))
+                reverboutname, snr(iSnr)), 'p')
         end
     end
 end
@@ -113,8 +113,8 @@ if strcmp(reverbid,'anechoic')
         %     snr(iFile)
         for iSnr=1:length(snr)
             out = v_addnoise(sig(:,1), fs, snr(iSnr), 'doAEpk', x(:,1), fs);
-            v_writewav(sig./10, fs, sprintf('data/mrt_hq/clearspeech.wav'))
-            v_writewav(out./10, fs, sprintf('data/mrt_hq/maxloudness.wav'))
+            v_writewav(sig./10, fs, sprintf('data/mrt_hq/clearspeech.wav'), 'p')
+            v_writewav(out./10, fs, sprintf('data/mrt_hq/maxloudness.wav'), 'p')
         end
     end
 end
