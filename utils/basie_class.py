@@ -645,11 +645,15 @@ class basie_estimator():
         else:
             # Turn into a normalized, clipped matrix for easy interpolation
             wq2 = np.maximum(np.reshape(wqi, (int(nsq), int(nxq)),order='F') - np.max(wqi), wfl)
+            if (((xq2[-1] - xq2[0]) / (xqrange)) < nr[15]+np.finfo(float).eps) & (((xq2[-1] - xq2[0]) / (xqrange)) > nr[15]-np.finfo(float).eps):
+                warnings.warn(UserWarning('Quadratic interpolation thesh within floating point accuracy. May differ from Matlab'))
+
             # Use quadratic interpolation in SRT axis
-            if ((xq2[-1] - xq2[0]) / (xqrange)) > nr[15]:
+            if ((xq2[-1] - xq2[0]) / (xqrange)) >= nr[15]:
                 # If range has shrunk by < nr(16), leave the SRT axis unchanged
                 xq2 = xqi.copy().reshape(-1,1)  # Copy the old SRT axis
                 wqup = 1  # Update flag
+
             else:
                 # Do quadratic interpolation
                 if LOG:
@@ -670,8 +674,11 @@ class basie_estimator():
                 temp3 = (wq2[:, tuple((np.minimum(np.maximum(xqj - 1, 1), nxq) - 1).astype(int))] + 
                          wq2[:, tuple((np.minimum(np.maximum(xqj + 2, 1), nxq) - 1).astype(int))]) * xqh
                 wq2 = temp1 + temp2 - temp3
+            if (((sq2[-1] - sq2[0]) / (sqrange)) < nr[15]+np.finfo(float).eps) & (((sq2[-1] - sq2[0]) / (sqrange)) > nr[15]-np.finfo(float).eps):
+                warnings.warn(UserWarning('Quadratic interpolation thesh within floating point accuracy. May differ from Matlab'))
+
             # Use quadratic interpolation in slope axis
-            if ((sq2[-1] - sq2[0]) / (sqrange)) > nr[15]:
+            if ((sq2[-1] - sq2[0]) / (sqrange)) >= nr[15]:
                 # If range has shrunk by < nr(16), leave the slope axis unchanged
                 sq2 = sqi.copy().reshape(-1,1)  # Copy the old slope axis
                 wqup -= 1  # Update flag
@@ -880,7 +887,7 @@ class basie_estimator():
                                 xmr = xmr + xm2 - 1
                             xmr = (2 - xmr) * xqj[0] + (xmr - 1) * xqj[1]
                             [pspk, smr]=np.max(psr), np.argmax(psr)
-                            if smr>0 and snr<nsq-1:
+                            if smr>0 and smr<nsq-1:
                                 log_px = np.log(px[smr-1:smr+2])
                                 sm2 = v_quadpeak(log_px)
                                 sm2 = sm2[1]
@@ -1031,10 +1038,16 @@ class basie_estimator():
                 elif nr[8] == 2:
                     hx = (xht + nr[3] * sht) / (1 + nr[3])  # expected cost function for each possible test SNR
                 hx2[j, :, jr] = hx  # save expected cost function for possible plotting
-                hminr[jr], ix = np.min(hx), np.argmin(hx)  # find the minimum of cost function for each value of r (0 or 1)
+                try:
+                    hminr[jr], ix = np.nanmin(hx), np.nanargmin(hx)  # find the minimum of cost function for each value of r (0 or 1)
+                except ValueError:
+                    hminr[jr], ix = np.nan, 0
             hminj[j] = (1 - pr0[j]) * hminr[0] + pr0[j] * hminr[1]
+
+        if np.shape(np.where(hminj==hminj.min()))[1]>1:
+            warnings.warn(UserWarning('Two minima found. Answer may differ from Matlab'))
         if nr[17]==1:
-            hminr[0], ix = np.min(hminj), np.argmin(hminj)
+            hminr[0], ix = np.nanmin(hminj), np.nanargmin(hminj)
         
         xn[iq-1] = xt[ix]
         if nr[8]==1:
