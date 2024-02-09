@@ -100,7 +100,6 @@ def run_calibration(**kwargs):
     root=kwargs.get('rootfig')
     calibration_window(root, audiofiles)
 
-
 def run_practice(**kwargs):
     nt = int(kwargs.get('ntrials'))
     audiofiles = kwargs.get('audiofiles').get()
@@ -239,7 +238,6 @@ def run_trials(**kwargs):
                     [snr, evalmodel,_,_] = srt_estimator.initialise(nmodels, modelp=np.repeat(modelp, nmodels, axis=1), basiep=basiep, availsnr=snrlist)
                     filenames=[]
                     choices=[]
-
 
         else:
             srt_estimator=basie_estimator()

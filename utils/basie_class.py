@@ -61,7 +61,6 @@ def v_psychofunc(m=None, q=None, x=None, r=None):
     # first sort out input arguments
     minp = 0.01  # minimum probability to use for inverse function by default
     qq = np.array([0.5, 0, 0.1, 0, 0, 1]).reshape(-1, 1)  # default values for q
-    
     if r is None:
         r = np.array([])
         if x is None:
@@ -220,7 +219,7 @@ def v_psychofunc(m=None, q=None, x=None, r=None):
         p = np.random.rand(*np.shape(p)) < p
 
     if 'g' in m.lower():
-        plt.clf()
+#         plt.clf()
         szp = [nx, nq]
         czp = sum(i > 1 for i in szp)
         if czp > 0: # check if there is anything to plot
@@ -248,7 +247,7 @@ def v_psychofunc(m=None, q=None, x=None, r=None):
                             plt.ylabel(axlab[izs[1]])
                         ia = ib
                 else: # graph
-                    plt.plot(qax[izs[0]], np.reshape(np.transpose(pg, izs), szs[:2]), '-')
+                    plt.plot(qax[izs[0]], np.reshape(np.transpose(pg, izs), szs[:2]), '-', label='psycofunc')
                     plt.xlabel(axlab[izs[0]])
             else:
                 if 'G' in m: # image

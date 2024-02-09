@@ -1,7 +1,7 @@
 addpath(genpath('~/Documents/MATLAB/sap-voicebox'))
 
 vctkpath='~/OneDrive - Imperial College London/Data/External/VCTK/wav48_silence_trimmed';
-nspeakers=16;
+nspeakers=12;
 
 speakerdata=readtable(strrep(vctkpath, 'wav48_silence_trimmed', 'speaker-info.txt'), 'ExpectedNumVariables',5);
 
