@@ -1,5 +1,5 @@
 %% Description
-% This script can be used to generate the data used in the experiments. 
+% This script can be used to generate the data used in the experiments.
 % Requirements:
 %   voicebox: http://www.ee.ic.ac.uk/hp/staff/dmb/voicebox/voicebox.html
 %       for signal processing
@@ -25,7 +25,7 @@ noisepath=uigetdir('~', 'Select path to noise file (.wav)');
 n_type='file';
 
 snr=-20:1:20; % list of SNR values to generate
-reverbid='Office_1'; %'Office_1'; % 'Meeting_Room_1' 'Building_Lobby
+reverbid='Office_1'; %'anechoic' 'Office_1' 'Meeting_Room_1' 'Building_Lobby'
 reverboutname='office';
 
 nsnr=length(snr);
@@ -35,7 +35,7 @@ sentdir = dir(fullfile(sentencepath, '*mrt*.wav'));
 sentnames = sort({sentdir.name});
 nfiles=length(sentnames);
 
-outfolder='./data/mrt';
+outfolder='./data/mrt_hq';
 mkdir(sprintf('%s/%s',outfolder, reverboutname))
 %% generate the data and save
 nfft = 2*(round(0.016*fs)-1);
@@ -88,16 +88,15 @@ for iFile=1:2
 
     if ~strcmp(reverbid, 'anechoic')
         for ichan=1:size(rir,2)
-        sig(:,ichan)=filter(rir(:,ichan),1, origsig);
+            sig(:,ichan)=filter(rir(:,ichan),1, origsig);
         end
     else
         sig = origsig;
     end
 
-    %     snr(iFile)
     for iSnr=1:length(snr)
         for ichan=1:size(rir,2)
-        out(:,ichan) = v_addnoise(sig(:,ichan), fs, snr(iSnr), 'doAEpk', x(:,ichan), fs);
+            out(:,ichan) = v_addnoise(sig(:,ichan), fs, snr(iSnr), 'doAEpk', x(:,ichan), fs);
         end
         v_writewav(out./10, fs, sprintf('%s/%s/practice_%s_reverb_%s_snr_%i_db.wav',outfolder,reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
             reverboutname, snr(iSnr)))
@@ -112,19 +111,19 @@ for iFile=3:nfiles
     if ~ismember(iFile, excludedfiles)
         [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}));
         origsig = resample(origsig, fs, fssig);
-    
+
         if ~strcmp(reverbid, 'anechoic')
             for ichan=1:size(rir,2)
-            sig(:,ichan)=filter(rir(:,ichan),1, origsig);
+                sig(:,ichan)=filter(rir(:,ichan),1, origsig);
             end
         else
             sig = origsig;
         end
-    
+
         %     snr(iFile)
         for iSnr=1:length(snr)
             for ichan=1:size(rir,2)
-            out(:,ichan) = v_addnoise(sig(:,ichan), fs, snr(iSnr), 'doAEpk', x(:,ichan), fs);
+                out(:,ichan) = v_addnoise(sig(:,ichan), fs, snr(iSnr), 'doAEpk', x(:,ichan), fs);
             end
             v_writewav(out./10, fs, sprintf('%s/%s/%s_reverb_%s_snr_%i_db.wav',outfolder,reverboutname,extractBefore(sentnames{iFile}, '.wav'), ...
                 reverboutname, snr(iSnr)))
@@ -138,7 +137,7 @@ if strcmp(reverbid,'anechoic')
     for iFile=50
         [origsig, fssig] = v_readwav(fullfile(sentencepath, sentnames{iFile}));
         origsig = resample(origsig, fs, fssig);
-    
+
         sig = origsig;
         %     snr(iFile)
         for iSnr=1:length(snr)

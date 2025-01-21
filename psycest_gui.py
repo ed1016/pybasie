@@ -36,7 +36,9 @@ from utils.basie_class import *
 
 def defaultfct(**kwargs):
     print('this is the defaultfct')
+
 def play_audio(**kwargs):
+    # Plays an audio file and ensures it is only played once
     audiofile=kwargs.get('audiofile')
     audiovar=kwargs.get('audioVar')
     if not audiovar.get():
@@ -46,14 +48,18 @@ def play_audio(**kwargs):
         audiovar.set('True')
     else:
         print('already played audio')
+
 def play_audio_loop(**kwargs):
+    # Plays an audio file without limit on number of times
     audiofile=kwargs.get('audiofile')
     audiovar=kwargs.get('audioVar')
     print('playing this file: ', audiofile)
     song = AudioSegment.from_wav(audiofile)
     play(song);
     audiovar.set('True')
+
 def extractfilelist(folderpath):
+    # Extracts list of reverberations, filenames, and snr levels from a folder
     foldfiles = os.listdir(folderpath)
 
     files = []
@@ -74,7 +80,9 @@ def extractfilelist(folderpath):
         availsnr.append(tmpavailsnr)
 
     return reverblist, files, availsnr
+    
 def extractfilelist_practice(folderpath):
+    # Extracts files and available snr levels from the practice folder
     foldfiles = os.listdir(folderpath)
     files = []
     availsnr = []
@@ -83,7 +91,9 @@ def extractfilelist_practice(folderpath):
             files.append(filename)
             availsnr.append(float(filename[filename.find("snr_")+len("snr_"):filename.find("_db")]))
     return files, availsnr
+
 def check_ID_day(outfolder, ID):
+    # Check if patient has already performed a test today
     foldfiles = os.listdir(outfolder)
     timestamp = dt.now().strftime("%Y%m%d")
     matches=[]
@@ -96,11 +106,13 @@ def check_ID_day(outfolder, ID):
     return matches
 
 def run_calibration(**kwargs):
+    # Run audio calibration
     audiofiles=kwargs.get('audiofiles').get()
     root=kwargs.get('rootfig')
     calibration_window(root, audiofiles)
 
 def run_practice(**kwargs):
+    # Run practice test
     nt = int(kwargs.get('ntrials'))
     audiofiles = kwargs.get('audiofiles').get()
     root = kwargs.get('rootfig')
@@ -139,11 +151,11 @@ def run_practice(**kwargs):
                                 for num, line in enumerate(file, 1):
                                     if fileID in line:
                                         listnbr=num-1
-                                        for l in range(len(line.split('\t')[1:])):
-                                            if fileID in line.split('\t')[l+1]:
+                                        linefilelist=[t.split(',')[0] for t in line.split('\t')[1:]]
+                                        wordlist=[t.split(',')[1] for t in line.split('\t')[1:]]
+                                        for l, item in enumerate(linefilelist):
+                                            if fileID in item:
                                                 idxinlist=l
-                            with open(methodfiles[1]) as file:
-                                wordlist=file.readlines()[listnbr].split('\t')[1:]
                             fileWord=wordlist[idxinlist].replace('\n', '')
                             if fileWord != 'excluded':
                                 print(fileID, fileWord)
@@ -157,13 +169,15 @@ def run_practice(**kwargs):
                 filenames[i,:] = currentfile
                 trialtitle = 'Practice ' + str(i+1) +'/' + str(nt)
                 if 'MRT' in method:
-                    response, wordchoice = responsewindow_MRT(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle, method).show()
+                    response, wordchoice = responsewindow_MRT(root, os.path.join(audiofiles,currentfile), methodfiles[0], trialtitle, method).show()
                 # response = responsewindow(root, os.path.join(audiofiles,currentfile), trialtitle).show()
                 print(response)
                 if response:
                     flg=1
 
 def run_trials(**kwargs):
+    # Run trials
+
     # trial parameters
     nt = int(kwargs.get('ntrials').get())
     audiofiles = kwargs.get('audiofiles').get()
@@ -314,11 +328,11 @@ def run_trials(**kwargs):
                             for num, line in enumerate(file, 1):
                                 if fileID in line:
                                     listnbr=num-1
-                                    for l in range(len(line.split('\t')[1:])):
-                                        if fileID in line.split('\t')[l+1]:
+                                    linefilelist=[t.split(',')[0] for t in line.split('\t')[1:]]
+                                    wordlist=[t.split(',')[1] for t in line.split('\t')[1:]]
+                                    for l, item in enumerate(linefilelist):
+                                        if fileID in item:
                                             idxinlist=l
-                        with open(methodfiles[1]) as file:
-                            wordlist=file.readlines()[listnbr].split('\t')[1:]
                         fileWord=wordlist[idxinlist].replace('\n', '')
                         if fileWord != 'excluded':
                             print(fileID, fileWord)
@@ -332,7 +346,7 @@ def run_trials(**kwargs):
             plotarea.filevar.set("Playing: "+currentfile)
             while flg==0:
                 if 'MRT' in method:
-                    response, wordchoice = responsewindow_MRT(root, os.path.join(audiofiles,currentfile), methodfiles[0], methodfiles[1], trialtitle, method).show()
+                    response, wordchoice = responsewindow_MRT(root, os.path.join(audiofiles,currentfile), methodfiles[0], trialtitle, method).show()
                 if plotarea.pausevar.get()=='paused':
                     flg=2
                 elif response:
@@ -394,6 +408,7 @@ def run_trials(**kwargs):
         plotarea.pausevar.set('active')
 
 class calibration_window(Toplevel):
+    # GUI Window for calibration
     def __init__(self, root, audiofile):
         Toplevel.__init__(self,root)
         self.title('Calibration window')
@@ -412,10 +427,8 @@ class calibration_window(Toplevel):
         self.maxaudiobtn = launchbutton(self, play_audio_loop, 'Max.', [1,1,1,1], audiofile=os.path.join(cleanfile, 'maxloudness.wav'), audioVar=StringVar())
 
 class responsewindow_MRT(Toplevel):
-    def __init__(self, root, audiofile, reftxt, senttxt,  titlestr, method):
-        # need to add response buttons based on info for list in .txt files
-        # the audiofile should define the true/false value of buttons
-        # start panel should have a rolldown menu giving the type of feedback needed
+    #  Response window for MRT test
+    def __init__(self, root, audiofile, reftxt,  titlestr, method):
         Toplevel.__init__(self, root)
         self.title(titlestr)
         self.geometry("+%d+%d" %(root.winfo_x()+400, root.winfo_y()+300))
@@ -442,17 +455,17 @@ class responsewindow_MRT(Toplevel):
             fileID="_".join(shortaudio.split("_", 3)[1:3])
         print(fileID)
         fileID.replace('\n', '')
+
         with open(reftxt) as file:
             for num, line in enumerate(file, 1):
                 if fileID in line:
                     self.listnbr=num-1
-                    print(line.split('\t'))
-                    for i in range(len(line.split('\t')[1:])):
-                        if fileID in line.split('\t')[i+1]:
-                            idxinlist=i
+                    linefilelist=[t.split(',')[0] for t in line.split('\t')[1:]]
+                    self.sentences=[t.split(',')[1] for t in line.split('\t')[1:]]
+                    for l, item in enumerate(linefilelist):
+                        if fileID in item:
+                            idxinlist=l
 
-        with open(senttxt) as file:
-            self.sentences=file.readlines()[self.listnbr].split('\t')[1:]
         self.correctsentence=self.sentences[idxinlist].replace('\n', '')
         if 'Click' in method:
             self.responsebtns = responsebutton_wordselect(self, self.responseVar, self.sentences, [1,0,1,1])
@@ -487,6 +500,7 @@ class responsewindow_MRT(Toplevel):
         self.destroy()
 
 class responsewindow(Toplevel):
+    # Generic response window
     def __init__(self, root, audiofile, titlestr):
         
         Toplevel.__init__(self, root)
@@ -527,6 +541,7 @@ class responsewindow(Toplevel):
 
     def closewindow(self):
         self.destroy()
+
 class responsebutton:
     def __init__(self, root, vaript=None, pos=[0,0,1,1]):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -552,6 +567,7 @@ class responsebutton:
 
     def update_val(self, newval):
         self.var.set(newval)
+
 class responsebutton_wordselect:
     def __init__(self, root, vaript=None, sentences='', pos=[0,0,1,1]):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -579,6 +595,7 @@ class responsebutton_wordselect:
         self.inaudible.grid(row=0, column=i+1, sticky='s')
     def update_val(self, newval):
         self.var.set(newval)
+
 class responsebutton_typein:
     def __init__(self, root, vaript=None, sentences='', pos=[0,0,1,1]):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -648,6 +665,7 @@ class browsebutton:
 
     def __update_varlbl(self, *args):
         self.__lblfull.set('Value: ' +str(self.var.get()))
+
 class browsebuttonfile:
     def __init__(self, root, lbl='Default', vaript=None, pos=[0,0,1,1]):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -656,6 +674,7 @@ class browsebuttonfile:
             self.var = StringVar()
         else :
             self.var = vaript # value of the entry
+
         self.__lblfull = StringVar(self.parent, value='Value: ' +str(self.var.get()))
 
 
@@ -671,8 +690,7 @@ class browsebuttonfile:
     def browse_computer(self):
         # self.parent.withdraw()
         folder_selected = filedialog.askopenfilename(initialdir=os.getcwd())
-        self.var.set(folder_selected)
-    
+        self.var.set(folder_selected)    
 
     def place_on_grid(self, newpos):
         self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
@@ -682,8 +700,12 @@ class browsebuttonfile:
         self.box.grid(row=1, column=0, sticky='s')
         self.varlbl.grid(row=2,column=0, sticky='nw')
 
+    def update_val(self, newval):
+        self.var.set(newval)
+
     def __update_varlbl(self, *args):
         self.__lblfull.set('Value: ' +str(self.var.get()))
+
 class launchbutton:
     def __init__(self, root, launchfct=defaultfct,lbl='Default',pos=[0,0,1,1], **kargs):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -703,6 +725,7 @@ class launchbutton:
         self.box['state']='disabled'
         launchfct(**kwargs)
         self.box['state']='normal'
+
 class plotarea:
     def __init__(self, root, **kargs):
         self.fig=plt.Figure()
@@ -744,6 +767,7 @@ class plotarea:
                 windowitems.append(v)
         for i in windowitems:
             i.closewindow()
+
 class textentry:
     def __init__(self, root, lbl='Default', vaript=None, pos=[0,0,1,1], range=None):
         self.parent = Frame(root) # frame to hold the box and labels
@@ -818,6 +842,7 @@ class textentry:
 
     def __update_varlbl(self, *args):
         self.__lblfull.set('Value: ' +str(self.var.get()))
+
 class listselect(Toplevel):    
     def __init__(self, root, filelist):
         
@@ -852,6 +877,7 @@ class listselect(Toplevel):
         # self.responsebtns.focus_force()
         self.wait_window()
         return self.responseVar.get()
+        
 class dropdownmenu():
     def __init__(self, root, lbl='Default', vaript=None, menuopts=['Default'], pos=[0,0,1,1]):
         self.parent = Frame(root)
@@ -871,11 +897,11 @@ class dropdownmenu():
         self.place_on_grid(pos)
 
         if 'MRT' in self.var.get():
-            idfilevar = StringVar(self.parent,value=os.path.join('data','recordings.txt'))
-            sentencefilevar = StringVar(self.parent,value=os.path.join('data','sentences.txt'))
-            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
-            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
-            self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
+            self.methodfilesvar = StringVar(self.parent,value=os.path.join('data','sentencemapping.txt'))
+            # sentencefilevar = StringVar(self.parent,value=os.path.join('utils','test.txt'))
+            self.methodfiles.append(browsebuttonfile(self.parent.master, 'Sentence mapping: ', self.methodfilesvar, [1,1,1,1]))
+            # self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
+            # self.methodfilesvar.set(sentencemappingvar.get())
 
     def place_on_grid(self, newpos):
         self.parent.grid(row=newpos[0], column=newpos[1], rowspan=newpos[2], columnspan=newpos[3], sticky='n', padx=10,pady=10)
@@ -887,18 +913,18 @@ class dropdownmenu():
         self.varlbl.grid(row=2,column=0, sticky='nw')
 
     def getfiles(self, event):
-        # print(self.var.get())
+        print(self.var.get())
         for i in self.methodfiles:
             i.parent.destroy()
 
         self.methodfiles=[]
-        # self.methodfilesvar=[]
+        self.methodfilesvar=StringVar(self.parent)
         if 'MRT' in self.var.get():
-            idfilevar = StringVar(self.parent,value=os.path.join('data','recordings.txt'))
-            sentencefilevar = StringVar(self.parent,value=os.path.join('data','sentences.txt'))
-            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List ID: ', idfilevar, [1,1,1,1]))
-            self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
-            self.methodfilesvar.set(idfilevar.get()+ ","+ sentencefilevar.get())
+            self.methodfilesvar = StringVar(self.parent,value=os.path.join('data','sentencemapping.txt'))
+            # sentencefilevar = StringVar(self.parent,value=os.path.join('utils','test.txt'))
+            self.methodfiles.append(browsebuttonfile(self.parent.master, 'Sentence mapping: ', self.methodfilesvar, [1,1,1,1]))
+            # self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
+            # self.methodfilesvar.set(sentencemappingvar.get())
         else:
             print('other')
 
@@ -953,7 +979,7 @@ if __name__=='__main__':
     paramframe.grid_columnconfigure(2, weight=1)
 
 
-    audiofilevar=StringVar(paramframe, value=os.path.join('data','mrt_hq'))
+    audiofilevar=StringVar(paramframe, value=os.path.join('data','mrt_hq/anechoic'))
     audiobtn=browsebutton(paramframe, 'Audio files: ', audiofilevar, [0,1,1,1])
 
     outputdirvar=StringVar(paramframe, value=os.path.join('data','results'))
@@ -964,10 +990,6 @@ if __name__=='__main__':
 
     methodvar=StringVar(paramframe, value='MRT [Type]')
     methodmenu=dropdownmenu(paramframe, 'Test type: ', methodvar, ['MRT [Click]', 'MRT [Type]', 'other'], [1,0,1,1])
-    # methodvar.set('MRT [Hurr.]')
-
-    # reffilesvar=StringVar(paramframe, value=['reference.txt', 'sentences.txt'])
-    # reffiles=browsebuttonfiles(paramframe, 'Reference files: ', reffilesvar, [1,1,1,1])
 
     # --------- Advanced parameters ---------
     advancedparamframe.grid_rowconfigure(0, weight=1)
@@ -1009,7 +1031,6 @@ if __name__=='__main__':
     experframe.grid_columnconfigure(2, weight=1)
 
     calibratebtn=launchbutton(experframe, run_calibration, 'Calibrate', [0,0,1,1], audiofiles=audiofilevar, rootfig=mainfig)
-
 
     practicebtn=launchbutton(experframe, run_practice, 'Practice', [0,1,1,1], ntrials=ntrialspractice, audiofiles=audiofilevar, rootfig=mainfig, method=methodvar, 
         methodfiles=methodmenu.methodfilesvar)

@@ -6,3 +6,5 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 outfile="$timestamp.txt"
 
 python3 validate_python_matlab.py $configfile > results/$outfile
+
+python3 plot_results.py results/$outfile

@@ -1,10 +1,20 @@
-addpath(genpath('~/Documents/MATLAB/sap-voicebox'))
+%% Description
+% This script can be used to generate the babble noise used in the experiments.
+% Requirements:
+%   voicebox: http://www.ee.ic.ac.uk/hp/staff/dmb/voicebox/voicebox.html
+%       for signal processing
+%   VCTK sentences: https://doi.org/10.7488/ds/2645
+%       for the raw speaker sentences
 
-vctkpath='~/OneDrive - Imperial College London/Data/External/VCTK/wav48_silence_trimmed';
+voiceboxpath=uigetdir('~', 'Select path to voicebox folder');
+addpath(genpath(voiceboxpath))
+
+vctkpath=uigetdir('~', 'Select path to VCTK sentences folder');
+sentencepath=fullfile(sentencepath, 'wav48_silence_trimmed');
+
 nspeakers=12;
 
 speakerdata=readtable(strrep(vctkpath, 'wav48_silence_trimmed', 'speaker-info.txt'), 'ExpectedNumVariables',5);
-
 
 listfemale=cellfun(@(x) string(x), table2cell(speakerdata(cellfun(@(x) x=='F', speakerdata.Var3),1)));
 listmale=cellfun(@(x) string(x), table2cell(speakerdata(cellfun(@(x) x=='M', speakerdata.Var3),1)));

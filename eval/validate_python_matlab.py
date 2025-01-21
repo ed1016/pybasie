@@ -16,6 +16,13 @@ with open(config_file, 'r') as file:
 N=configvars['trial_structure']['Nrealisations']
 nt=configvars['trial_structure']['Ntrials']
 
+gtsrtprct=configvars['ground_truth']['prob_at_thresh']
+gtsrt=configvars['ground_truth']['thresh_srt']
+gtslp=configvars['ground_truth']['slope_at_thresh']
+gtmiss=configvars['ground_truth']['prob_miss']
+gtguess=configvars['ground_truth']['prob_guess']
+gtfct=configvars['ground_truth']['func_type']
+
 mdlsrtprct=configvars['model_parameters']['srt_percentage']
 mdlmiss=configvars['model_parameters']['miss_rate']
 mdlguess=configvars['model_parameters']['guess_rate']
@@ -31,7 +38,7 @@ cs=configvars['basie_parameters']['cs']
 dh=configvars['basie_parameters']['dh']
 sl=configvars['basie_parameters']['sl']
 kp=configvars['basie_parameters']['kp']
-hg=eval(configvars['basie_parameters']['hg'])
+hg=configvars['basie_parameters']['hg']
 cf=configvars['basie_parameters']['cf']
 pm=configvars['basie_parameters']['pm']
 lg=configvars['basie_parameters']['lg']
@@ -53,11 +60,11 @@ for j in range(N):
 	for i in range(nt):
 		listofresponses.append(random.randint(0,1))
 
-	matresult=eng.matlab_run(nt,listofresponses,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,
+	matresult=eng.matlab_run(nt,gtsrtprct, gtsrt, gtslp, gtmiss, gtguess, gtfct,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,
 		nx,ns,nh,cs,dh,sl,kp,hg,cf,pm,lg,pp,pf,ts,dp,it,at,la,op,rx,nargout=1,stdout=io.StringIO())
 	with contextlib.redirect_stdout(io.StringIO()):
 		with warnings.catch_warnings(record=True) as w:
-			pyresult=python_run(nt,listofresponses,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,
+			pyresult=python_run(nt,gtsrtprct, gtsrt, gtslp, gtmiss, gtguess, gtfct,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,
 				nx,ns,nh,cs,dh,sl,kp,hg,cf,pm,lg,pp,pf,ts,dp,it,at,la,op,rx)
 
 	w = list(filter(lambda i: issubclass(i.category, UserWarning), w))
@@ -68,7 +75,7 @@ for j in range(N):
 
 	matresult=[d for d in matresult[0]]
 
-	results.append({'matresults': matresult, 'pyresult': pyresult, 'difference': sum(abs(matresult-pyresult)), 'warning':warningmsg, 'conditionlist':listofresponses})
+	results.append({'matresults': matresult, 'pyresult': pyresult, 'difference': sum(abs(matresult[3:-1]-pyresult[3:-1])), 'warning':warningmsg, 'conditionlist':listofresponses})
 eng.quit()
 
 print(sorted(results, key=lambda k: k['difference']))

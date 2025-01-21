@@ -1,4 +1,4 @@
-function endresults=matlab_run(nt,listofresponses,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,nx,ns,nh,cs,dh,sl,kp,hg,cf,pm,lg,pp,pf,ts,dp,it,at,la,op,rx)
+function endresults=matlab_run(nt,gtsrtprct, gtsrt, gtslp, gtmiss, gtguess, gtfct,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,nx,ns,nh,cs,dh,sl,kp,hg,cf,pm,lg,pp,pf,ts,dp,it,at,la,op,rx)
 addpath(genpath('~/Documents/MATLAB'))
 clear params
 
@@ -6,7 +6,15 @@ clear params
 %     define test parameters      %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % listofresponses=repmat([1 0 0 0 0 0 1 1 1 1], 1,10);
-listofresponses=cell2mat(listofresponses);
+% listofresponses=cell2mat(listofresponses);
+
+gtsrtprct=double(gtsrtprct);
+gtsrt=double(gtsrt);
+gtslp=double(gtslp);
+gtmiss=double(gtmiss);
+gtguess=double(gtguess);
+gtfct=double(gtfct);
+
 nt=double(nt);
 mdlsrtprct=double(mdlsrtprct);
 mdlmiss=double(mdlmiss);
@@ -40,9 +48,11 @@ q.rx=double(rx); %Minimum range factor per iteration [0.5]
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     define model parameters     %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% truemodel = [gtsrtprct gtsrt gtslp gtmiss gtguess gtfct]';                  % ground truth model
+
+truemodel = [gtsrtprct gtsrt gtslp gtmiss gtguess gtfct]';                  % ground truth model
 modelp = [mdlsrtprct mdlmiss mdlguess mdlminsnr mdlmaxsnr mdlslopemin mdlslopemax];
 availablesnrs=mdlminsnr:mdlmaxsnr;
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %     Now perform the tests       %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -50,7 +60,9 @@ snr=v_psycest(-1,modelp.',q, availablesnrs);              % initialize the model
 ii=1;
 
 for i=1:nt
-    response = listofresponses(i);
+    % response = listofresponses(i);
+    response=v_psychofunc('r',truemodel,snr); 
+
     [snr,ii, m, v, mrob, vrob]=v_psycest(ii,snr,response);                % supply the response, update the model and find next probe snr
 end
 

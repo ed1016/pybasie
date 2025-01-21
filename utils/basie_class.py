@@ -645,7 +645,7 @@ class basie_estimator():
             # Turn into a normalized, clipped matrix for easy interpolation
             wq2 = np.maximum(np.reshape(wqi, (int(nsq), int(nxq)),order='F') - np.max(wqi), wfl)
             if (((xq2[-1] - xq2[0]) / (xqrange)) < nr[15]+np.finfo(float).eps) & (((xq2[-1] - xq2[0]) / (xqrange)) > nr[15]-np.finfo(float).eps):
-                warnings.warn(UserWarning('Quadratic interpolation thesh within floating point accuracy. May differ from Matlab'))
+                warnings.warn(UserWarning('Quadratic interpolation thresh within floating point accuracy. May differ from Matlab'))
 
             # Use quadratic interpolation in SRT axis
             if ((xq2[-1] - xq2[0]) / (xqrange)) >= nr[15]:
@@ -674,7 +674,7 @@ class basie_estimator():
                          wq2[:, tuple((np.minimum(np.maximum(xqj + 2, 1), nxq) - 1).astype(int))]) * xqh
                 wq2 = temp1 + temp2 - temp3
             if (((sq2[-1] - sq2[0]) / (sqrange)) < nr[15]+np.finfo(float).eps) & (((sq2[-1] - sq2[0]) / (sqrange)) > nr[15]-np.finfo(float).eps):
-                warnings.warn(UserWarning('Quadratic interpolation thesh within floating point accuracy. May differ from Matlab'))
+                warnings.warn(UserWarning('Quadratic interpolation thresh within floating point accuracy. May differ from Matlab'))
 
             # Use quadratic interpolation in slope axis
             if ((sq2[-1] - sq2[0]) / (sqrange)) >= nr[15]:

@@ -3,14 +3,13 @@ import warnings
 sys.path.append('../utils')
 from basie_class import *
 
-def python_run(nt,listofresponses,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,nx,ns,nh,cs,dh,sl,kp,hg,cf,pm,lg,pp,pf,ts,dp,it,at,la,op,rx):
-
-
+def python_run(nt,gtsrtprct, gtsrt, gtslp, gtmiss, gtguess, gtfct,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsnr,mdlslopemin,mdlslopemax,nx,ns,nh,cs,dh,sl,kp,hg,cf,pm,lg,pp,pf,ts,dp,it,at,la,op,rx):
+	
+	gtmodel=np.array([[gtsrtprct], [gtsrt], [gtslp], [gtmiss], [gtguess], [gtfct]])
 	modelp = np.array([[mdlsrtprct], [mdlmiss], [mdlguess], [mdlminsnr], [mdlmaxsnr], [mdlslopemin], [mdlslopemax]])
 	basiep={'nx':nx,'ns':ns,'nh':nh,'cs':cs,'dh':dh,'sl':sl,'kp':kp,'hg':hg,'cf':cf,'pm':pm,'lg':lg,'pp':pp,'pf':pf,'ts':ts,'dp':dp,'it':it,'at':at,'la':la,'op':op,'rx':rx}
 
 	nmodels=1
-
 
 	basieest=basie_estimator()
 	availsnr=np.linspace(mdlminsnr, mdlmaxsnr, int((mdlmaxsnr-mdlminsnr))+1).T
@@ -18,7 +17,9 @@ def python_run(nt,listofresponses,mdlsrtprct,mdlmiss,mdlguess,mdlminsnr,mdlmaxsn
 
 	ii=1
 	for i in range(nt):
-		response=np.array([[bool(listofresponses[i])]])
+		# response=np.array([[bool(listofresponses[i])]])
+		[response, __] = v_psychofunc('r',gtmodel,np.array([snr1]))
+
 		[snr1, ii, m, v, mrob, vrob]=basieest.update(ii, probesnr=snr1, response=response, robust=True)
 
 	return basieest.summary()[-1][-1]
