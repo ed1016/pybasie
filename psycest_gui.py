@@ -897,7 +897,7 @@ class dropdownmenu():
         self.place_on_grid(pos)
 
         if 'MRT' in self.var.get():
-            self.methodfilesvar = StringVar(self.parent,value=os.path.join('data','sentencemapping.txt'))
+            self.methodfilesvar = StringVar(self.parent,value=os.path.join('data','sentence_mapping.txt'))
             # sentencefilevar = StringVar(self.parent,value=os.path.join('utils','test.txt'))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'Sentence mapping: ', self.methodfilesvar, [1,1,1,1]))
             # self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
@@ -920,7 +920,7 @@ class dropdownmenu():
         self.methodfiles=[]
         self.methodfilesvar=StringVar(self.parent)
         if 'MRT' in self.var.get():
-            self.methodfilesvar = StringVar(self.parent,value=os.path.join('data','sentencemapping.txt'))
+            self.methodfilesvar = StringVar(self.parent,value=os.path.join('data','sentence_mapping.txt'))
             # sentencefilevar = StringVar(self.parent,value=os.path.join('utils','test.txt'))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'Sentence mapping: ', self.methodfilesvar, [1,1,1,1]))
             # self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))

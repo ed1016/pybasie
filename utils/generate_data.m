@@ -35,7 +35,7 @@ sentdir = dir(fullfile(sentencepath, '*mrt*.wav'));
 sentnames = sort({sentdir.name});
 nfiles=length(sentnames);
 
-outfolder='./data/mrt_hq';
+outfolder='../data/mrt_hq';
 mkdir(sprintf('%s/%s',outfolder, reverboutname))
 %% generate the data and save
 nfft = 2*(round(0.016*fs)-1);
