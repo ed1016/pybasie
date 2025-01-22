@@ -1,10 +1,10 @@
 trial_structure:
  Nrealisations: 1000
- Ntrials: 30
+ Ntrials: 40
 
 ground_truth:
   prob_at_thresh: 0.5
-  thresh_srt: 2
+  thresh_srt: 0
   slope_at_thresh: 0.1
   prob_miss: 0.01
   prob_guess: 0

@@ -979,7 +979,7 @@ if __name__=='__main__':
     paramframe.grid_columnconfigure(2, weight=1)
 
 
-    audiofilevar=StringVar(paramframe, value=os.path.join('data','mrt_hq/anechoic'))
+    audiofilevar=StringVar(paramframe, value=os.path.join('data','mrt_hq','anechoic'))
     audiobtn=browsebutton(paramframe, 'Audio files: ', audiofilevar, [0,1,1,1])
 
     outputdirvar=StringVar(paramframe, value=os.path.join('data','results'))

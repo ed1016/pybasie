@@ -44,7 +44,7 @@ if __name__ == "__main__":
 	bins=np.arange(min(min(data)), max(max(data))+bwidth,bwidth)
 	ax.hist(data,bins, density=True, histtype="step", stacked=False, label=['Python', 'Matlab'])
 	ax.legend()
-	ax.set_title('Mean calculated SRT after 30 trials')
+	ax.set_title('Mean calculated SRT after 40 trials')
 
 	plt.savefig(resultfile.replace('txt', 'png'), bbox_inches='tight')
 
