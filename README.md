@@ -20,11 +20,11 @@ PyBasie is a Python-based GUI tool for evaluating Speech Reception Thresholds (S
    ```
 2. Install dependencies: 
    ```bash
+   cd pybasie
    pip install -r requirements.txt
    ```
 3. Launch the GUI:
    ```bash
-   cd pybasie
    python psycest_gui.py
    ```
 
