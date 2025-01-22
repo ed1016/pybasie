@@ -1,0 +1,1 @@
+time: 20250121_172942 	 subjectID: Participant 	 audio folder: data/mrt_hq/anechoic 	 model parameters: [  0.5    0.04   0.1  -20.    20.     0.     0.5 ] 	 reverb list: ['anechoic'] 	 ntrials: 30

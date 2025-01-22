@@ -199,6 +199,10 @@ def run_trials(**kwargs):
 
     basiep={'cs': slopeweight}
     try:
+        os.mkdir(outdir)
+    except:
+        pass
+    try:
         reverblist, filelist, availsnr = extractfilelist(audiofiles)
     except:
         filelist=[]
@@ -897,7 +901,7 @@ class dropdownmenu():
         self.place_on_grid(pos)
 
         if 'MRT' in self.var.get():
-            self.methodfilesvar = StringVar(self.parent,value=os.path.join('data','sentence_mapping.txt'))
+            self.methodfilesvar = StringVar(self.parent,value=os.path.join('exampledata','sentence_mapping.txt'))
             # sentencefilevar = StringVar(self.parent,value=os.path.join('utils','test.txt'))
             self.methodfiles.append(browsebuttonfile(self.parent.master, 'Sentence mapping: ', self.methodfilesvar, [1,1,1,1]))
             # self.methodfiles.append(browsebuttonfile(self.parent.master, 'List sentences: ', sentencefilevar, [1,2,1,1]))
@@ -979,10 +983,10 @@ if __name__=='__main__':
     paramframe.grid_columnconfigure(2, weight=1)
 
 
-    audiofilevar=StringVar(paramframe, value=os.path.join('data','mrt_hq','anechoic'))
+    audiofilevar=StringVar(paramframe, value=os.path.join('exampledata','anechoic'))
     audiobtn=browsebutton(paramframe, 'Audio files: ', audiofilevar, [0,1,1,1])
 
-    outputdirvar=StringVar(paramframe, value=os.path.join('data','results'))
+    outputdirvar=StringVar(paramframe, value=os.path.join('results'))
     outputdir=browsebutton(paramframe, 'Output directory: ', outputdirvar, [0,2,1,1])
 
     subjectIDvar=StringVar(paramframe, value='ID')

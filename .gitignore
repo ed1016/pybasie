@@ -2,7 +2,7 @@
 *.DS_Store
 *.wav
 *.pdf
-data/*
+data [used in study]/*
 dev/*
 archive/*
 **/__pycache__
