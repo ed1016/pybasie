@@ -1,6 +1,6 @@
 **/.ipynb_checkpoints
 *.DS_Store
-*.wav
+# *.wav
 *.pdf
 data [used in study]/*
 dev/*
