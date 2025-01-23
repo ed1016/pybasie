@@ -50,6 +50,7 @@ Set up experiment-specific parameters:
 - **Audio files**: path to the _folder_ containing the audio to use in the experiment.
 
   > **Note**: Audio file naming must follow the convention `[filename]_reverb_[reverb]_snr_[snr]_dB.wav`, e.g. `mrt_001_reverb_anechoic_snr_-1_dB.wav`. Multiple reverberation conditions in the folder result in joint SRT model estimations.
+
 - **Ouput directory**: path to the _folder_ used to save results.
 - **Test type**: type of test and feedback used. The current implementation contains the MRT sentences [[2]](https://pubs.aip.org/asa/jasa/article/35/11_Supplement/1899/617588)[[3]](https://datashare.ed.ac.uk/handle/10283/347) with the option to type the participant's answer, or select an option out of five.
 - **Sentence mapping**: path to the _file_ containing the audio file-to-word mapping used in the experiment (e.g. `mrt_001.wav` is the word `went`).
@@ -58,19 +59,23 @@ Set up experiment-specific parameters:
 
 ### Basie advanced parameters (B)
 Customize Bayesian adaptive parameters:
-- **Slope weight** determines how much importance the algorithm should put on the slope estimation compared to the SRT estimation.
-- **Min SNR (dB)** is the minimum available SNR in the audio, expressed in dB.
-- **Max SNR (dB)** is the maximum available SNR in the audio, expressed in dB.
-- **Guess rate** is the assumed rate at which subjects can correctly guess the word without hearing it.
-- **Miss rate** is the assumed rate at which subjects incorrectly repeat the word even if they have heard it.
-- **Max. nbr. trials** is the number of trials after which the experiment stops.
+- **Slope weight**: prioritization of slope vs. SRT estimation.
+- **Min/Max SNR (dB)**: range of signal-to-noise ratios available in the audio files.
+- **Guess rate**: probability of guessing the correct word without hearing it.
+- **Miss rate**: probability of incorrect responses despite hearing the word.
+- **Max. nbr. trials**: number of trials after which the experiment stops.
 
 ***
 
 ### Start/stop panel (C)
 Initiate and manage experiment phases:
-- **Calibrate**: playback noiseless audio and the loudest sample in the experiment to ensure the sound is set at an intelligible and comfortable level.
+- **Calibrate**: play back noiseless and loudest samples to set comfortable listening levels.
+
+  > **Note**: `clearspeech.wav` and `maxloudness.wav` files must be placed in the parent folder to the **Audio files** folder.
+
 - **Practice**: start practice phase.
+
+  > **Note**: Practice files follow the same naming convention as audio files, preceedeed by `practice_`, e.g. `practice_mrt_001_reverb_anechoic_snr_-1_dB.wav`.
 - **Start**: begin the experiment.
 
 ***
