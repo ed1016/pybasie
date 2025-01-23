@@ -1,5 +1,6 @@
 # PyBasie - Psychometric Function Evaluation Using Basie in Python
 **PyBasie** is an intuitive Python-based GUI for evaluating Speech Reception Thresholds (SRTs) in (reverberant) speech-in-noise conditions. It employs a **Bayesian adaptive approach** for precise psychometric function estimation, following the methodology in [[1]](https://pubs.aip.org/asa/jasa/article/141/4/2501/1059157). Key features include:  
+- **Bayesian estimation**: Statistically efficient estimation of both the SRT and psychometric function slope at the SRT.
 - **Customizable experiment parameters**: Define test settings, input/output directories, and subject-specific data.  
 - **Dynamic SRT estimation**: Handles multiple reverberation conditions and generates individual SRT models.  
 - **Real-time feedback**: Visualize SRT estimates and trial progress during experiments.  
