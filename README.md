@@ -27,6 +27,39 @@ PyBasie is a Python-based GUI tool for evaluating Speech Reception Thresholds (S
    ```bash
    python psycest_gui.py
    ```
+## Usage
+This repository contains a minimum working example in the `exampledata` folder. 
+   
+## Detailed Features
+<p float="none" align="middle">
+  <img src="docs/guiannotation.png" width="100%" hspace="2%"/>
+</p>
+> **Figure 2**: GUI used for SRT estimation where (A) shows the experiment parameters panel, (B) indicates where the Basie parameters for SRT estimation can be adjusted, (C) are the start/stop buttons, and (D) is the control panel showing progress with trials.  
+
+The GUI contains 4 main panels, labelled in Figure 2:
+- The **Parameters** panel **A** is used to set the experiment parameters where
+  - **Subject ID** is set to link results to a participant's name.
+  - **Audio files** is the path to the _folder_ containing the audio to use in the experiment.
+  - **Ouput directory** is the path to the _folder_ used to save results.
+  - **Test type** is the type of test and feedback used. The current implementation contains the MRT sentences [2,3] with the option to type the participant's answer, or select an option out of five.
+  - **Sentence mapping** is the path to the _file_ containing the audio file-to-word mapping used in the experiment (e.g. `mrt_001.wav` is the word `went`).
+- The **Advanced parameters** panel **B** contains the parameters specific to Basie [1] for SRT estimation:
+  - **Slope weight** determines how much importance the algorithm should put on the slope estimation compared to the SRT estimation.
+  - **Min SNR (dB)** is the minimum available SNR in the audio, expressed in dB.
+  - **Max SNR (dB)** is the maximum available SNR in the audio, expressed in dB.
+  - **Guess rate** is the assumed rate at which subjects can correctly guess the word without hearing it.
+  - **Miss rate** is the assumed rate at which subjects incorrectly repeat the word even if they have heard it.
+  - **Max. nbr. trials** is the number of trials after which the experiment stops.
+- The bottom panel **C** contains buttons used to start the experiment:
+  - **Calibrate** gives the option to playback noiseless audio and the loudest sample in the experiment to ensure the sound is set at an intelligible and comfortable level.
+  - **Practice** gives particpants the opportunity to familiarise themselves with the experiments.
+  - **Start** begins the experiment.
+- The right-side panel **D** showcases information as the experiment progresses:
+  - In each trial, the name of the audio file being played is printed at the top of the panel.
+  - Each probe SNR is progressively plotted using a dashed line and crosses. The value of the SRT estimate at each step is plotted as an horizontal line.
+  - The exact value of the SRT and slope estimates is given at the bottom of the panel, along with the associated estimate variance. 
+
+
 
 ## Experiment reproduction [Optional]
 Reproduce the experimental setup in [to come] using the MATLAB scripts provided in the `utils` folder:
