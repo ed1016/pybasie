@@ -38,6 +38,8 @@
   - `generate_data.m`: Creates reverberant speech-in-noise files.
   - `sentence_mapping.txt`: Maps audio files to spoken sentences.
 - Analyse the results for a single participant using the `demos/analyse_results.ipynb` notebook.
+
+A dummy example of participant results is given in the `results` folder.
 ## Detailed Features
 <p float="none" align="middle">
   <img src="docs/guiannotation.png" width="85%" hspace="2%"/>
